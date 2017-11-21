@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 2.6)
+
+project(rulengd C)
+
+add_definitions(
+		-Wall
+		-Wextra
+		-Wundef
+		-Wshadow
+		-Wunreachable-code
+		-Wfloat-equal
+		-std=gnu11
+		)
+
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
+
+find_package(LIBUBOX REQUIRED)
+find_package(LIBUCI REQUIRED)
+
+set(RULENGD_LINK ${LIBUBOX_LIBRARIES} ${LIBUCI_LIBRARIES})
+
+set(SOURCES
+		src/main.c
+		)
+
+add_executable(rulengd ${SOURCES})
+target_link_libraries(rulengd ${RULENGD_LINK})
