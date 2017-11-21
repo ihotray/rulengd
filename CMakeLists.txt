@@ -5,6 +5,7 @@ project(rulengd C)
 add_definitions(
 		-Wall
 		-Wextra
+		-Wuninitialized
 		-Wundef
 		-Wshadow
 		-Wunreachable-code
