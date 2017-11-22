@@ -27,6 +27,7 @@ set(RULENGD_LINK
 
 set(SOURCES
 		src/main.c
+		src/ruleng.c
 		)
 
 add_executable(rulengd ${SOURCES})
