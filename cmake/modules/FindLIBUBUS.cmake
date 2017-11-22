@@ -1,0 +1,20 @@
+find_path(LIBUBUS_INCLUDE_DIRS libubus.h)
+find_library(LIBUBUS_LIBRARIES NAMES ubus)
+
+if (LIBUBUS_INCLUDE_DIRS AND LIBUBUS_LIBRARIES)
+  SET(UBUS_FOUND TRUE)
+endif (LIBUBUS_INCLUDE_DIRS AND LIBUBUS_LIBRARIES)
+
+if (UBUS_FOUND)
+	message(STATUS "Found libubus: ${LIBUBUS_LIBRARIES}")
+else (UBUS_FOUND)
+	if (UBUS_FOUND REQUIRED)
+		if (NOT LIBUBUS_INCLUDE_DIRS)
+			message(FATAL_ERROR "Could not find libubus.h header file!")
+		endif (NOT LIBUBUS_INCLUDE_DIRS)
+
+		if (NOT LIBUBUS_LIBRARIES)
+			message(FATAL_ERROR "Could not find libubus.so libraries!")
+		endif (NOT LIBUBUS_LIBRARIES)
+	endif (UBUS_FOUND REQUIRED)
+endif (UBUS_FOUND)
