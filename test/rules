@@ -1,0 +1,7 @@
+config 'rule' 'something'
+    option event 'wifi.radio'
+    list event_arg 'type: channel_change'
+    list event_arg 'reason: 1'
+    option method 'wifi.radio->turnoff'
+    list method_arg 'radio: wl0'
+    list method_arg 'timeout: 60'

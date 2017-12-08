@@ -1,32 +1,69 @@
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "ruleng.h"
+#include "ruleng_bus.h"
+#include "ruleng_model.h"
 #include "utils.h"
 
-struct ruleng_ctx_s {
-    struct ubus_context *ubus_ctx;
+struct ruleng_ctx {
+    struct ruleng_bus_ctx *bus_ctx;
+    struct ruleng_com_ctx *com_ctx;
 };
 
-ruleng_error_e
-ruleng_init_ctx(struct ubus_context *ubus_ctx, ruleng_ctx_t **ctx)
+enum ruleng_rc
+ruleng_init(const char *sock,
+            const char *model,
+            char *rules,
+            struct ruleng_ctx **ctx)
 {
-    ruleng_error_e rc = RULENG_OK;
+    enum ruleng_rc rc = RULENG_OK;
 
-    *ctx = malloc(sizeof(ruleng_ctx_t));
+    *ctx = malloc(sizeof(**ctx));
     if (NULL == *ctx) {
         RULENG_ERR("error allocating main context");
         rc = RULENG_ERR_ALLOC;
         goto exit;
     }
+    struct ruleng_ctx *_ctx = *ctx;
 
-    ruleng_ctx_t *_ctx = *ctx;
+    struct ruleng_com_ctx *com_ctx = NULL;
+    if (RULENG_COM_OK != ruleng_com_init(&com_ctx, model)) {
+        RULENG_ERR("error initializing model");
+        rc = RULENG_ERR_MODEL_INIT;
+        goto cleanup_ctx;
+    }
 
-    _ctx->ubus_ctx = ubus_ctx;
+    struct ruleng_bus_ctx *bus_ctx = NULL;
+    if (RULENG_BUS_OK != ruleng_bus_init(&bus_ctx, com_ctx, rules, sock)) {
+        RULENG_ERR("error initializing bus");
+        rc = RULENG_ERR_BUS_INIT;
+        goto cleanup_com_ctx;
+    }
+
+    _ctx->bus_ctx = bus_ctx;
+    _ctx->com_ctx = com_ctx;
+
+    goto exit;
+
+cleanup_com_ctx:
+    ruleng_com_free(com_ctx);
+cleanup_ctx:
+    free(_ctx);
 exit:
     return rc;
 }
 
 void
-ruleng_free_ctx(ruleng_ctx_t *ctx)
+ruleng_uloop_run(struct ruleng_ctx *ctx)
 {
+   ruleng_bus_uloop_run(ctx->bus_ctx);
+}
+
+void
+ruleng_free(struct ruleng_ctx *ctx)
+{
+    ruleng_bus_free(ctx->bus_ctx);
+    ruleng_com_free(ctx->com_ctx);
     free(ctx);
 }

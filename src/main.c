@@ -3,14 +3,12 @@
 #include <stdlib.h>
 #include <getopt.h>
 
-#include <libubox/uloop.h>
-
 #include "ruleng.h"
 #include "utils.h"
 
 #define RULENG_DEFAULT_UBUS_PATH "/var/run/ubus.sock"
-#define RULENG_DEFAULT_RULES_PATH "./test/rules"
-#define RULENG_DEFAULT_MODEL_PATH "./test/model.json"
+#define RULENG_DEFAULT_RULES_PATH "rules"
+#define RULENG_DEFAULT_MODEL_PATH "../test/model.json"
 
 static void
 ruleng_usage(char *n)
@@ -28,7 +26,7 @@ ruleng_usage(char *n)
 int
 main(int argc, char **argv)
 {
-    char *ubus_sock = RULENG_DEFAULT_UBUS_PATH;
+    char *sock = RULENG_DEFAULT_UBUS_PATH;
     char *rules = RULENG_DEFAULT_RULES_PATH;
     char *model = RULENG_DEFAULT_MODEL_PATH;
 
@@ -41,7 +39,7 @@ main(int argc, char **argv)
             ruleng_usage(argv[0]);
             return EXIT_SUCCESS;
         case 's':
-            ubus_sock = optarg;
+            sock = optarg;
             break;
         case 'r':
             rules = optarg;
@@ -57,28 +55,15 @@ main(int argc, char **argv)
 
     int rc = EXIT_FAILURE;
 
-    struct ubus_context *ubus_ctx = ubus_connect(ubus_sock);
-    if (NULL == ubus_ctx) {
-        RULENG_ERR("error ubus connect: %d", rc);
+    struct ruleng_ctx *ctx = NULL;
+    if (ruleng_init(sock, model, rules, &ctx) != RULENG_OK)
         goto exit;
-    }
 
-    ruleng_ctx_t *ctx = NULL;
-    ruleng_error_e s = ruleng_init_ctx(ubus_ctx, &ctx);
-    if (s != RULENG_OK)
-        goto cleanup_ubus;
+    ruleng_uloop_run(ctx);
 
-    uloop_init();
-    ubus_add_uloop(ubus_ctx);
-    RULENG_INFO("running uloop...");
-    uloop_run();
-
-    ruleng_free_ctx(ctx);
+    ruleng_free(ctx);
 
     rc = EXIT_SUCCESS;
-
-cleanup_ubus:
-    ubus_free(ubus_ctx);
 exit:
     return rc;
 }

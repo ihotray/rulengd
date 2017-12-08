@@ -18,16 +18,20 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 find_package(LIBUBOX REQUIRED)
 find_package(LIBUCI REQUIRED)
 find_package(LIBUBUS REQUIRED)
+find_package(JSON-C REQUIRED)
 
 set(RULENGD_LINK
   ${LIBUBOX_LIBRARIES}
   ${LIBUCI_LIBRARIES}
   ${LIBUBUS_LIBRARIES}
+  ${JSON-C_LIBRARIES}
   )
 
 set(SOURCES
 		src/main.c
 		src/ruleng.c
+		src/ruleng_ubus.c
+		src/ruleng_model.c
 		)
 
 add_executable(rulengd ${SOURCES})

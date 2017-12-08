@@ -1,18 +1,23 @@
 
 #pragma once
 
-#include <libubus.h>
-
-typedef enum {
+enum ruleng_rc {
     RULENG_OK = 0,
     RULENG_ERR_ALLOC,
-    RULENG_ERR_UBUS_REGISTER,
-} ruleng_error_e;
+    RULENG_ERR_BUS_INIT,
+    RULENG_ERR_BUS_REGISTER,
+    RULENG_ERR_MODEL_INIT,
+    RULENG_ERR_PARSE_MODEL,
+    RULENG_ERR_LOAD_RULES,
+};
 
-typedef struct ruleng_ctx_s ruleng_ctx_t;
+struct ruleng_ctx;
 
-ruleng_error_e
-ruleng_init_ctx(struct ubus_context *ubus_ctx, ruleng_ctx_t **ctx);
+enum ruleng_rc
+ruleng_init(const char *sock, const char *model, char *rules, struct ruleng_ctx **ctx);
 
 void
-ruleng_free_ctx(ruleng_ctx_t *ctx);
+ruleng_uloop_run(struct ruleng_ctx *ctx);
+
+void
+ruleng_free(struct ruleng_ctx *ctx);
