@@ -16,11 +16,13 @@ struct ruleng_com_ctx;
 
 struct ruleng_com_rule {
     LN_LIST_NODE(ruleng_com_rule) node;
-    char *event;
-    struct json_object *args;
-    struct action {
+    struct {
+        char *name;
+        struct json_object *args;
+    } event;
+    struct {
         char *object;
-        char *method;
+        char *name;
         struct json_object *args;
     } action;
 };

@@ -43,7 +43,7 @@ ruleng_bus_find_rule(struct ruleng_com_rules *rules, const char *ev)
 {
     struct ruleng_com_rule *r = NULL;
     LN_LIST_FOREACH(r, rules, node) {
-        if (0 == strcmp(r->event, ev))
+        if (0 == strcmp(r->event.name, ev))
             return r;
     }
     return NULL;
@@ -132,7 +132,7 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
 
     struct blob_buf eargs = {0};
     blob_buf_init(&eargs, 0);
-    blobmsg_add_object(&eargs, r->args);
+    blobmsg_add_object(&eargs, r->event.args);
 
     if (false == ruleng_bus_take_action(eargs.head, msg))
         goto cleanup_args;
@@ -154,7 +154,7 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
         RULENG_ERR("error allocating ubus request");
         goto cleanup_buff;
     }
-    ubus_invoke_async(ubus_ctx, id, r->action.method, buff.head, req);
+    ubus_invoke_async(ubus_ctx, id, r->action.name, buff.head, req);
 
     req->complete_cb = ruleng_ubus_complete_cb;
     req->data_cb = ruleng_ubus_data_cb;
@@ -186,7 +186,7 @@ ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules)
 
     struct ruleng_com_rule *r = NULL;
     LN_LIST_FOREACH(r, &ctx->rules, node) {
-        if (ubus_register_event_handler(ctx->ubus_ctx, &ctx->handler, r->event)) {
+        if (ubus_register_event_handler(ctx->ubus_ctx, &ctx->handler, r->event.name)) {
             RULENG_ERR("failed to register event handler");
             rc = RULENG_BUS_ERR_REGISTER_EVENT;
             goto exit;

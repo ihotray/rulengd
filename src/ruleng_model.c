@@ -24,8 +24,8 @@ ruleng_com_free_rules(struct ruleng_com_rules *rs)
     struct ruleng_com_rule *r = NULL, *t = NULL;
     LN_LIST_FOREACH_SAFE(r, rs, node, t) {
         json_object_put(r->action.args);
-        free(r->event);
-        json_object_put(r->args);
+        free(r->event.name);
+        json_object_put(r->event.args);
         free(r->action.object);
         free(r);
     }
@@ -529,10 +529,10 @@ ruleng_com_get_rules(struct ruleng_com_ctx *ctx, struct ruleng_com_rules *rules,
             goto cleanup_method_args;
         }
 
-        rule->event = event;
-        rule->args = args;
+        rule->event.name = event;
+        rule->event.args = args;
         rule->action.object = object;
-        rule->action.method = method;
+        rule->action.name = method;
         rule->action.args = margs;
 
         LN_LIST_INSERT(rules, rule, node);
