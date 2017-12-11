@@ -213,7 +213,7 @@ ruleng_bus_init(struct ruleng_bus_ctx **ctx, struct ruleng_com_ctx *com_ctx,
 
     struct ubus_context *ubus_ctx = ubus_connect(sock);
     if (NULL == ubus_ctx) {
-        RULENG_ERR("error ubus connect: %d", rc);
+        RULENG_ERR("error ubus connect: %s", sock);
         rc = RULENG_BUS_ERR_CONNECT;
         goto cleanup_ctx;
     }

@@ -29,14 +29,12 @@ ruleng_init(const char *sock,
 
     struct ruleng_com_ctx *com_ctx = NULL;
     if (RULENG_COM_OK != ruleng_com_init(&com_ctx, model)) {
-        RULENG_ERR("error initializing model");
         rc = RULENG_ERR_MODEL_INIT;
         goto cleanup_ctx;
     }
 
     struct ruleng_bus_ctx *bus_ctx = NULL;
     if (RULENG_BUS_OK != ruleng_bus_init(&bus_ctx, com_ctx, rules, sock)) {
-        RULENG_ERR("error initializing bus");
         rc = RULENG_ERR_BUS_INIT;
         goto cleanup_com_ctx;
     }
