@@ -14,8 +14,8 @@ enum ruleng_com_rc {
 
 struct ruleng_com_ctx;
 
-struct ruleng_com_recipe {
-    LN_LIST_NODE(ruleng_com_recipe) node;
+struct ruleng_com_rule {
+    LN_LIST_NODE(ruleng_com_rule) node;
     char *event;
     struct json_object *args;
     struct action {
@@ -25,16 +25,16 @@ struct ruleng_com_recipe {
     } action;
 };
 
-LN_LIST_HEAD(ruleng_com_recipes, ruleng_com_recipe);
+LN_LIST_HEAD(ruleng_com_rules, ruleng_com_rule);
 
 enum ruleng_com_rc
 ruleng_com_init(struct ruleng_com_ctx **, const char *);
 
 enum ruleng_com_rc
-ruleng_com_parse_recipes(struct ruleng_com_ctx *, struct ruleng_com_recipes *,
-                         char *);
+ruleng_com_get_rules(struct ruleng_com_ctx *, struct ruleng_com_rules *, char *);
+
 void
-ruleng_com_free_recipes(struct ruleng_com_recipes *);
+ruleng_com_free_rules(struct ruleng_com_rules *);
 
 void
 ruleng_com_free(struct ruleng_com_ctx *);

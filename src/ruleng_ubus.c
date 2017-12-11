@@ -17,7 +17,7 @@ struct ruleng_bus_ctx {
     struct ubus_context *ubus_ctx;
     struct ruleng_com_ctx *com_ctx;
     struct ubus_event_handler handler;
-    struct ruleng_com_recipes recipes;
+    struct ruleng_com_rules rules;
 };
 
 static void
@@ -38,11 +38,11 @@ ruleng_ubus_data_cb(struct ubus_request *req, int type, struct blob_attr *msg)
     free(json);
 }
 
-static struct ruleng_com_recipe *
-ruleng_bus_find_recipe(struct ruleng_com_recipes *recipes, const char *ev)
+static struct ruleng_com_rule *
+ruleng_bus_find_rule(struct ruleng_com_rules *rules, const char *ev)
 {
-    struct ruleng_com_recipe *r = NULL;
-    LN_LIST_FOREACH(r, recipes, node) {
+    struct ruleng_com_rule *r = NULL;
+    LN_LIST_FOREACH(r, rules, node) {
         if (0 == strcmp(r->event, ev))
             return r;
     }
@@ -123,12 +123,12 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
     struct ruleng_bus_ctx *ctx =
         container_of(handler, struct ruleng_bus_ctx, handler);
 
-    struct ruleng_com_recipe *r = ruleng_bus_find_recipe(&ctx->recipes, type);
+    struct ruleng_com_rule *r = ruleng_bus_find_rule(&ctx->rules, type);
     if (NULL == r) {
-        RULENG_ERR("%s: recipe not found", type);
+        RULENG_ERR("%s: rule not found", type);
         goto exit;
     }
-    RULENG_INFO("%s: recipe found", type);
+    RULENG_INFO("%s: rule found", type);
 
     struct blob_buf eargs = {0};
     blob_buf_init(&eargs, 0);
@@ -174,9 +174,9 @@ ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules)
 {
     enum ruleng_bus_rc rc = RULENG_BUS_OK;
 
-    LN_LIST_HEAD_INITIALIZE(ctx->recipes);
+    LN_LIST_HEAD_INITIALIZE(ctx->rules);
     if (RULENG_COM_OK !=
-        ruleng_com_parse_recipes(ctx->com_ctx, &ctx->recipes, rules)) {
+        ruleng_com_get_rules(ctx->com_ctx, &ctx->rules, rules)) {
         RULENG_ERR("error parsing model");
         rc = RULENG_BUS_ERR_PARSE_MODEL;
         goto exit;
@@ -184,8 +184,8 @@ ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules)
 
     ctx->handler.cb = ruleng_event_cb;
 
-    struct ruleng_com_recipe *r = NULL;
-    LN_LIST_FOREACH(r, &ctx->recipes, node) {
+    struct ruleng_com_rule *r = NULL;
+    LN_LIST_FOREACH(r, &ctx->rules, node) {
         if (ubus_register_event_handler(ctx->ubus_ctx, &ctx->handler, r->event)) {
             RULENG_ERR("failed to register event handler");
             rc = RULENG_BUS_ERR_REGISTER_EVENT;
@@ -248,7 +248,7 @@ ruleng_bus_uloop_run(struct ruleng_bus_ctx *ctx)
 void
 ruleng_bus_free(struct ruleng_bus_ctx *ctx)
 {
-    ruleng_com_free_recipes(&ctx->recipes);
+    ruleng_com_free_rules(&ctx->rules);
     ubus_free(ctx->ubus_ctx);
     free(ctx);
 }

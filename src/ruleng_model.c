@@ -19,9 +19,9 @@ struct ruleng_com_ctx {
 };
 
 void
-ruleng_com_free_recipes(struct ruleng_com_recipes *rs)
+ruleng_com_free_rules(struct ruleng_com_rules *rs)
 {
-    struct ruleng_com_recipe *r = NULL, *t = NULL;
+    struct ruleng_com_rule *r = NULL, *t = NULL;
     LN_LIST_FOREACH_SAFE(r, rs, node, t) {
         json_object_put(r->action.args);
         free(r->event);
@@ -485,9 +485,8 @@ exit:
 
 
 enum ruleng_com_rc
-ruleng_com_parse_recipes(struct ruleng_com_ctx *ctx,
-                         struct ruleng_com_recipes *recipes,
-                         char *path)
+ruleng_com_get_rules(struct ruleng_com_ctx *ctx, struct ruleng_com_rules *rules,
+                     char *path)
 {
     enum ruleng_com_rc rc = RULENG_COM_OK;
 
@@ -505,7 +504,7 @@ ruleng_com_parse_recipes(struct ruleng_com_ctx *ctx,
         char *event = NULL;
         rc = ruleng_com_parse_event(ctx->uci_ctx, s, &event);
         if (RULENG_COM_OK != rc)
-            goto cleanup_recipes;
+            goto cleanup_rules;
 
         struct json_object *args = NULL;
         rc = ruleng_com_parse_event_arg(ctx->uci_ctx, ctx->com, s, event, &args);
@@ -523,20 +522,20 @@ ruleng_com_parse_recipes(struct ruleng_com_ctx *ctx,
         if (RULENG_COM_OK != rc)
             goto cleanup_object;
 
-        struct ruleng_com_recipe *recipe = calloc(1, sizeof *recipe);
-        if (NULL == recipe) {
-            RULENG_ERR("error allocating recipe");
+        struct ruleng_com_rule *rule = calloc(1, sizeof *rule);
+        if (NULL == rule) {
+            RULENG_ERR("error allocating rule");
             rc = RULENG_COM_ERR_ALLOC;
             goto cleanup_method_args;
         }
 
-        recipe->event = event;
-        recipe->args = args;
-        recipe->action.object = object;
-        recipe->action.method = method;
-        recipe->action.args = margs;
+        rule->event = event;
+        rule->args = args;
+        rule->action.object = object;
+        rule->action.method = method;
+        rule->action.args = margs;
 
-        LN_LIST_INSERT(recipes, recipe, node);
+        LN_LIST_INSERT(rules, rule, node);
 
         continue;
 
@@ -548,13 +547,13 @@ ruleng_com_parse_recipes(struct ruleng_com_ctx *ctx,
         json_object_put(args);
     cleanup_event:
         free(event);
-        goto cleanup_recipes;
+        goto cleanup_rules;
     }
 
     goto exit;
 
-cleanup_recipes:
-    ruleng_com_free_recipes(recipes);
+cleanup_rules:
+    ruleng_com_free_rules(rules);
 exit:
     return rc;
 }
