@@ -3,15 +3,15 @@ cmake_minimum_required(VERSION 2.6)
 project(rulengd C)
 
 add_definitions(
-		-Wall
-		-Wextra
-		-Wuninitialized
-		-Wundef
-		-Wshadow
-		-Wunreachable-code
-		-Wfloat-equal
-		-std=gnu11
-		)
+    -Wall
+    -Wextra
+    -Wuninitialized
+    -Wundef
+    -Wshadow
+    -Wunreachable-code
+    -Wfloat-equal
+    -std=gnu11
+    )
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 
@@ -28,11 +28,11 @@ set(RULENGD_LINK
   )
 
 set(SOURCES
-		src/main.c
-		src/ruleng.c
-		src/ruleng_ubus.c
-		src/ruleng_model.c
-		)
+    src/main.c
+    src/ruleng.c
+    src/ruleng_ubus.c
+    src/ruleng_model.c
+    )
 
 add_executable(rulengd ${SOURCES})
 target_link_libraries(rulengd ${RULENGD_LINK})
