@@ -14,9 +14,9 @@
 #include "utils.h"
 
 #define RULENG_EVENT_FIELD "event"
-#define RULENG_EVENT_ARG_FIELD "event_arg"
+#define RULENG_EVENT_ARG_FIELD "event_data"
 #define RULENG_METHOD_FIELD "method"
-#define RULENG_METHOD_ARG_FIELD "method_arg"
+#define RULENG_METHOD_ARG_FIELD "method_data"
 
 struct ruleng_com_ctx {
     struct uci_context *uci_ctx;
@@ -78,168 +78,6 @@ exit:
 }
 
 static enum ruleng_com_rc
-ruleng_com_rule_parse(const char *r, char **k, char **v)
-{
-    enum ruleng_com_rc rc = RULENG_COM_ERR_RULES_NOT_VALID;
-
-    if (NULL == r)
-        goto exit;
-
-    *v = strdup(r);
-    if (NULL == *v)
-        goto exit;
-
-    *k = strsep(v, ":");
-    if (NULL == *k)
-        goto exit;
-    if (NULL == *v || '\0' == **v)
-        goto cleanup;
-
-    size_t i = 0, l = strlen(*v);
-    while(i < l && isspace((*v)[i]))
-        ++i;
-    if (i == l)
-        goto cleanup;
-
-    memmove(*v, *v + i, l - i);
-    (*v)[l - i] = '\0';
-
-    rc = RULENG_COM_OK;
-    goto exit;
-
-cleanup:
-    free(*k);
-exit:
-    return rc;
-}
-
-static struct json_object *
-ruleng_com_json_array_find_object(struct json_object *arr,
-                                  const char *k,
-                                  const char *v)
-{
-    for (int i = 0, len = json_object_array_length(arr); i < len; i++) {
-        struct json_object *o = json_object_array_get_idx(arr, i);
-        struct json_object *f = NULL;
-        if (true == json_object_object_get_ex(o, k, &f)
-            && 0 == strcmp(v, json_object_get_string(f)))
-            return o;
-    }
-    return NULL;
-}
-
-static enum ruleng_com_rc
-ruleng_com_get_method_arg_type(struct json_object *com,
-                               const char *mname,
-                               const char *aname,
-                               const char **type)
-{
-    enum ruleng_com_rc rc = RULENG_COM_ERR_MODEL_NOT_VALID;
-
-    struct json_object *methods = NULL;
-    if (false == json_object_object_get_ex(com, "method", &methods)) {
-        RULENG_ERR("model: 'method' not found");
-        goto exit;
-    }
-
-    struct json_object *o =
-        ruleng_com_json_array_find_object(methods, "name", mname);
-    if (NULL == o) {
-        RULENG_ERR("model: method 'name' not found");
-        goto exit;
-    }
-
-    struct json_object *input = NULL;
-    if (false == json_object_object_get_ex(o, "input", &input)) {
-        RULENG_ERR("model: method missing 'input'");
-        goto exit;
-    }
-
-    struct json_object *t =
-        ruleng_com_json_array_find_object(input, "name", aname);
-    if (NULL == t) {
-        RULENG_ERR("model: '%s' method input 'name' not found", mname);
-        goto exit;
-    }
-
-    struct json_object *js = NULL;
-    if (false == json_object_object_get_ex(t, "type", &js)) {
-        RULENG_ERR("model: '%s' method input missing type", mname);
-        goto exit;
-    }
-
-    *type = json_object_get_string(js);
-    rc = RULENG_COM_OK;
-
-exit:
-    return rc;
-}
-
-static enum ruleng_com_rc
-ruleng_com_get_event_arg_type(struct json_object *com, const char *ename,
-                              const char *name, const char **type)
-{
-    enum ruleng_com_rc rc = RULENG_COM_ERR_MODEL_NOT_VALID;
-
-    struct json_object *events = NULL;
-    if (false == json_object_object_get_ex(com, "event", &events)) {
-        RULENG_ERR("model: 'event' not found");
-        goto exit;
-    }
-
-    struct json_object *o =
-        ruleng_com_json_array_find_object(events, "name", ename);
-    if (NULL == o) {
-        RULENG_ERR("model: event 'name' not found");
-        goto exit;
-    }
-
-    struct json_object *data = NULL;
-    if (false == json_object_object_get_ex(o, "data", &data)) {
-        RULENG_ERR("model: event 'data' not found");
-        goto exit;
-    }
-
-    struct json_object *t =
-        ruleng_com_json_array_find_object(data, "name", name);
-    if (NULL == t) {
-        RULENG_ERR("model: event data 'name' not found");
-        goto exit;
-    }
-
-    struct json_object *js = NULL;
-    if (false == json_object_object_get_ex(t, "type", &js)) {
-        RULENG_ERR("model: event data 'type' not found");
-        goto exit;
-    }
-
-    *type = json_object_get_string(js);
-    rc = RULENG_COM_OK;
-
-exit:
-    return rc;
-}
-
-static bool
-strtoi(const char *str, int *val)
-{
-    char *endptr;
-
-    errno = 0;
-    long res = strtol(str, &endptr, 10);
-
-    if (errno != 0
-        || endptr == str
-        || *endptr != '\0'
-        || res < INT_MIN
-        || res > INT_MAX)
-        return false;
-
-    *val = (int)res;
-    return true;
-}
-
-static enum ruleng_com_rc
 ruleng_com_rules_parse_object_method(struct uci_context *ctx,
                                      struct uci_section *s,
                                      char **method,
@@ -256,7 +94,7 @@ ruleng_com_rules_parse_object_method(struct uci_context *ctx,
 
     char *temp = strdup(om);
     if (NULL == temp) {
-        RULENG_ERR("failed to allocate object method");
+        RULENG_ERR("%s: failed to allocate object method", s->type);
         rc = RULENG_COM_ERR_ALLOC;
         goto exit;
     }
@@ -269,7 +107,7 @@ ruleng_com_rules_parse_object_method(struct uci_context *ctx,
     }
 
     if (2 > strlen(temp) && temp[0] != '>') {
-        RULENG_ERR("method does not exist");
+        RULENG_ERR("%s: method does not exist", s->type);
         rc = RULENG_COM_ERR_RULES_NOT_VALID;
         goto cleanup_temp;
     }
@@ -309,171 +147,48 @@ exit:
     return rc;
 }
 
-static struct json_object *
-ruleng_com_rules_conv_to_json(const char *v, const char *t)
+static void
+ruleng_com_json_object_concat(struct json_object **src, struct json_object *dest)
 {
-    struct json_object *obj = NULL;
-
-    if (0 == strcmp("s", t)) {
-        obj = json_object_new_string(v);
-    } else if (0 == strcmp("i", t)) {
-        int tmp = 0;
-        if (false == strtoi(v, &tmp)) {
-            RULENG_ERR("failed casting %s to integer", v);
-        } else {
-            obj = json_object_new_int(tmp);
-        }
-    } else if (0 == strcmp("b", t)) {
-        bool b = 0 == strcmp("t", v);
-        obj = json_object_new_boolean(b);
-    } else {
-        RULENG_ERR("invalid type: %s", t);
+    json_object_object_foreach(dest, key, val) {
+        struct json_object *tmp = json_object_get(val);
+        json_object_object_add(*src, key, tmp);
     }
-
-    return obj;
+    return;
 }
 
 static enum ruleng_com_rc
-ruleng_com_rules_parse_event_type(struct uci_option *o,
-                                  const char *ev,
-                                  char **type)
-{
-    enum ruleng_com_rc rc = RULENG_COM_OK;
-
-    struct uci_element *le = list_to_element(o->v.list.next);
-    if (NULL == le) {
-        RULENG_ERR("%s: rules not found", ev);
-        rc = RULENG_COM_ERR_RULES_NOT_VALID;
-        goto exit;
-    }
-    char *k = NULL, *v = NULL;
-    rc = ruleng_com_rule_parse(le->name, &k, &v);
-    if (RULENG_COM_OK != rc) {
-        RULENG_ERR("%s: failed to parse rule", ev);
-        goto exit;
-    }
-    if (0 != strcmp(k, "type")) {
-        RULENG_ERR("%s: event type not found", ev);
-        rc = RULENG_COM_ERR_RULES_NOT_VALID;
-        goto cleanup_key;
-    }
-    *type = strdup(v);
-    if (NULL == *type) {
-        RULENG_ERR("%s: failed to allocate event type", ev);
-        rc = RULENG_COM_ERR_ALLOC;
-        goto cleanup_key;
-    }
-
-cleanup_key:
-    free(k);
-exit:
-    return rc;
-}
-
-static enum ruleng_com_rc
-ruleng_com_rules_parse_event_args(struct uci_context *ctx,
-                                  struct json_object *com,
-                                  struct uci_section *s,
-                                  const char *ev,
-                                  struct json_object **args)
+ruleng_com_rules_parse_args(struct uci_context *ctx,
+                            const char *field,
+                            struct uci_section *s,
+                            const char *ev,
+                            struct json_object **args)
 {
     enum ruleng_com_rc rc = RULENG_COM_OK;
 
     *args = json_object_new_object();
     if (NULL == *args) {
-        RULENG_ERR("failed to allocate json object");
+        RULENG_ERR("%s: failed to allocate json object", ev);
         rc = RULENG_COM_ERR_ALLOC;
         goto exit;
     }
 
-    struct uci_option *earg = uci_lookup_option(ctx, s, RULENG_EVENT_ARG_FIELD);
-
-    char *et = NULL;
-    rc = ruleng_com_rules_parse_event_type(earg, ev, &et);
-    if (RULENG_COM_OK != rc)
-        goto exit;
-
-    json_object_object_add(*args, "type", json_object_new_string(et));
-
-    struct uci_list *list = &earg->v.list;
-    for (struct uci_element *le = list_to_element(list->next->next);
-         &le->list != list;
-         le = list_to_element(le->list.next)) {
-
-        char *k = NULL, *v = NULL;
-        rc = ruleng_com_rule_parse(le->name, &k, &v);
-        if (RULENG_COM_OK != rc) {
-            RULENG_ERR("failed to parse event rule");
-            goto cleanup_json;
-        }
-        const char *t = NULL;
-        rc = ruleng_com_get_event_arg_type(com, et, k, &t);
-        if (RULENG_COM_OK != rc)
-            goto cleanup_key;
-
-        struct json_object *rule = ruleng_com_rules_conv_to_json(v, t);
-        if (NULL == rule)
-            goto cleanup_key;
-
-        json_object_object_add(*args, k, rule);
-
-    cleanup_key:
-        free(k);
-        if (RULENG_COM_OK != rc)
-            goto cleanup_json;
-    }
-
-    goto exit;
-
-cleanup_json:
-    json_object_put(*args);
-exit:
-    free(et);
-    return rc;
-}
-
-static enum ruleng_com_rc
-ruleng_com_rules_parse_method_args(struct uci_context *ctx,
-                                   struct json_object *com,
-                                   struct uci_section *s,
-                                   const char *method,
-                                   struct json_object **args)
-{
-    enum ruleng_com_rc rc = RULENG_COM_OK;
-
-    *args = json_object_new_object();
-    if (NULL == *args) {
-        RULENG_ERR("failed to allocate json object");
-        rc = RULENG_COM_ERR_ALLOC;
+    struct uci_option *earg = uci_lookup_option(ctx, s, field);
+    if (NULL == earg) {
+        RULENG_INFO("%s: rule arguments not found", ev);
         goto exit;
     }
 
-    struct uci_option *earg = uci_lookup_option(ctx, s, RULENG_METHOD_ARG_FIELD);
-    struct uci_element *le = NULL;
-
-    uci_foreach_element(&earg->v.list, le) {
-        char *k = NULL, *v = NULL;
-        rc = ruleng_com_rule_parse(le->name, &k, &v);
-        if (RULENG_COM_OK != rc) {
-            RULENG_ERR("failed to parse method argument rule");
+    struct uci_element *elem = NULL;
+    uci_foreach_element(&earg->v.list, elem) {
+        struct json_object *obj = json_tokener_parse(elem->name);
+        if (NULL == obj) {
+            RULENG_ERR("%s: rule contains invalid json object", ev);
+            rc = RULENG_COM_ERR_RULES_NOT_VALID;
             goto cleanup_json;
         }
-
-        const char *t = NULL;
-        rc = ruleng_com_get_method_arg_type(com, method, k, &t);
-        if (RULENG_COM_OK != rc)
-            goto cleanup_key;
-
-        struct json_object *rule = ruleng_com_rules_conv_to_json(v, t);
-        if (NULL == rule)
-            goto cleanup_key;
-
-        json_object_object_add(*args, k, rule);
-
-    cleanup_key:
-        free(k);
-        if (RULENG_COM_OK != rc)
-            goto cleanup_json;
+        ruleng_com_json_object_concat(args, obj);
+        json_object_put(obj);
     }
 
     goto exit;
@@ -486,7 +201,6 @@ exit:
 
 static enum ruleng_com_rc
 ruleng_com_rules_parse_event(struct uci_context *ctx,
-                             struct json_object *com,
                              struct uci_section *s,
                              struct ruleng_com_event *ev)
 {
@@ -498,9 +212,11 @@ ruleng_com_rules_parse_event(struct uci_context *ctx,
         goto exit;
 
     struct json_object *args = NULL;
-    rc = ruleng_com_rules_parse_event_args(ctx, com, s, name, &args);
+    rc = ruleng_com_rules_parse_args(ctx, RULENG_EVENT_ARG_FIELD, s, name, &args);
     if (RULENG_COM_OK != rc)
         goto cleanup_name;
+
+    RULENG_INFO("%s event data: %s", name, json_object_to_json_string(args));
 
     ev->name = name;
     ev->args = args;
@@ -515,7 +231,6 @@ exit:
 
 static enum ruleng_com_rc
 ruleng_com_rules_parse_action(struct uci_context *ctx,
-                              struct json_object *com,
                               struct uci_section *s,
                               struct ruleng_com_action *ac)
 {
@@ -527,7 +242,7 @@ ruleng_com_rules_parse_action(struct uci_context *ctx,
         goto exit;
 
     struct json_object *args = NULL;
-    rc = ruleng_com_rules_parse_method_args(ctx, com, s, name, &args);
+    rc = ruleng_com_rules_parse_args(ctx, RULENG_METHOD_ARG_FIELD, s, name, &args);
     if (RULENG_COM_OK != rc)
         goto cleanup_object;
 
@@ -551,7 +266,7 @@ ruleng_com_get_rules(struct ruleng_com_ctx *ctx, struct ruleng_com_rules *rules,
 
     struct uci_ptr ptr;
     if (UCI_OK != uci_lookup_ptr(ctx->uci_ctx, &ptr, path, true)) {
-        RULENG_ERR("uci lookup failed");
+        RULENG_ERR("%s: uci lookup failed", path);
         rc = RULENG_COM_ERR_RULES_NOT_FOUND;
         goto exit;
     }
@@ -562,16 +277,16 @@ ruleng_com_get_rules(struct ruleng_com_ctx *ctx, struct ruleng_com_rules *rules,
 
         struct ruleng_com_rule *rule = calloc(1, sizeof *rule);
         if (NULL == rule) {
-            RULENG_ERR("failed to allocate rule");
+            RULENG_ERR("%s: failed to allocate rule", path);
             rc = RULENG_COM_ERR_ALLOC;
             goto cleanup_rules;
         }
 
-        rc = ruleng_com_rules_parse_event(ctx->uci_ctx, ctx->com, s, &rule->event);
+        rc = ruleng_com_rules_parse_event(ctx->uci_ctx, s, &rule->event);
         if (RULENG_COM_OK != rc)
             goto cleanup_rule;
 
-        rc = ruleng_com_rules_parse_action(ctx->uci_ctx, ctx->com, s, &rule->action);
+        rc = ruleng_com_rules_parse_action(ctx->uci_ctx, s, &rule->action);
         if (RULENG_COM_OK != rc)
             goto cleanup_event_args;
 
@@ -580,6 +295,7 @@ ruleng_com_get_rules(struct ruleng_com_ctx *ctx, struct ruleng_com_rules *rules,
         continue;
 
     cleanup_event_args:
+        free(rule->event.name);
         json_object_put(rule->event.args);
     cleanup_rule:
         free(rule);

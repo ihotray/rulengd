@@ -175,9 +175,7 @@ ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules)
     enum ruleng_bus_rc rc = RULENG_BUS_OK;
 
     LN_LIST_HEAD_INITIALIZE(ctx->rules);
-    if (RULENG_COM_OK !=
-        ruleng_com_get_rules(ctx->com_ctx, &ctx->rules, rules)) {
-        RULENG_ERR("error parsing model");
+    if (RULENG_COM_OK != ruleng_com_get_rules(ctx->com_ctx, &ctx->rules, rules)) {
         rc = RULENG_BUS_ERR_PARSE_MODEL;
         goto exit;
     }
@@ -222,7 +220,6 @@ ruleng_bus_init(struct ruleng_bus_ctx **ctx, struct ruleng_com_ctx *com_ctx,
 
     rc = ruleng_bus_register_events(_ctx, rules);
     if (RULENG_BUS_OK != rc) {
-        RULENG_ERR("error registering events");
         goto cleanup_bus_ctx;
     }
 
