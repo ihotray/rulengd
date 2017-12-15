@@ -36,3 +36,5 @@ set(SOURCES
 
 add_executable(rulengd ${SOURCES})
 target_link_libraries(rulengd ${RULENGD_LINK})
+
+install(FILES test/ruleng-test-rules DESTINATION /etc/config)

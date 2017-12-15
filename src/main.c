@@ -7,7 +7,7 @@
 #include "utils.h"
 
 #define RULENG_DEFAULT_UBUS_PATH "/var/run/ubus.sock"
-#define RULENG_DEFAULT_RULES_PATH "rules"
+#define RULENG_DEFAULT_RULES_PATH "ruleng-test-rules"
 
 static void
 ruleng_usage(char *n)
