@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "ruleng_model.h"
+#include "ruleng_rules.h"
 
 enum ruleng_bus_rc {
     RULENG_BUS_OK = 0,
@@ -15,7 +15,7 @@ enum ruleng_bus_rc {
 struct ruleng_bus_ctx;
 
 enum ruleng_bus_rc
-ruleng_bus_init(struct ruleng_bus_ctx **, struct ruleng_com_ctx *, char *,
+ruleng_bus_init(struct ruleng_bus_ctx **, struct ruleng_rules_ctx *, char *,
                 const char *);
 void
 ruleng_bus_uloop_run(struct ruleng_bus_ctx *);

@@ -15,9 +15,9 @@
 
 struct ruleng_bus_ctx {
     struct ubus_context *ubus_ctx;
-    struct ruleng_com_ctx *com_ctx;
+    struct ruleng_rules_ctx *com_ctx;
     struct ubus_event_handler handler;
-    struct ruleng_com_rules rules;
+    struct ruleng_rules rules;
 };
 
 static void
@@ -38,10 +38,10 @@ ruleng_ubus_data_cb(struct ubus_request *req, int type, struct blob_attr *msg)
     free(json);
 }
 
-static struct ruleng_com_rule *
-ruleng_bus_find_rule(struct ruleng_com_rules *rules, const char *ev)
+static struct ruleng_rule *
+ruleng_bus_find_rule(struct ruleng_rules *rules, const char *ev)
 {
-    struct ruleng_com_rule *r = NULL;
+    struct ruleng_rule *r = NULL;
     LN_LIST_FOREACH(r, rules, node) {
         if (0 == strcmp(r->event.name, ev))
             return r;
@@ -123,7 +123,7 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
     struct ruleng_bus_ctx *ctx =
         container_of(handler, struct ruleng_bus_ctx, handler);
 
-    struct ruleng_com_rule *r = ruleng_bus_find_rule(&ctx->rules, type);
+    struct ruleng_rule *r = ruleng_bus_find_rule(&ctx->rules, type);
     if (NULL == r) {
         RULENG_ERR("%s: rule not found", type);
         goto exit;
@@ -175,14 +175,14 @@ ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules)
     enum ruleng_bus_rc rc = RULENG_BUS_OK;
 
     LN_LIST_HEAD_INITIALIZE(ctx->rules);
-    if (RULENG_COM_OK != ruleng_com_get_rules(ctx->com_ctx, &ctx->rules, rules)) {
+    if (RULENG_RULES_OK != ruleng_rules_get(ctx->com_ctx, &ctx->rules, rules)) {
         rc = RULENG_BUS_ERR_PARSE_MODEL;
         goto exit;
     }
 
     ctx->handler.cb = ruleng_event_cb;
 
-    struct ruleng_com_rule *r = NULL;
+    struct ruleng_rule *r = NULL;
     LN_LIST_FOREACH(r, &ctx->rules, node) {
         if (ubus_register_event_handler(ctx->ubus_ctx, &ctx->handler, r->event.name)) {
             RULENG_ERR("failed to register event handler");
@@ -196,7 +196,7 @@ exit:
 }
 
 enum ruleng_bus_rc
-ruleng_bus_init(struct ruleng_bus_ctx **ctx, struct ruleng_com_ctx *com_ctx,
+ruleng_bus_init(struct ruleng_bus_ctx **ctx, struct ruleng_rules_ctx *com_ctx,
                 char *rules, const char *sock)
 {
     enum ruleng_bus_rc rc = RULENG_BUS_OK;
@@ -245,7 +245,7 @@ ruleng_bus_uloop_run(struct ruleng_bus_ctx *ctx)
 void
 ruleng_bus_free(struct ruleng_bus_ctx *ctx)
 {
-    ruleng_com_free_rules(&ctx->rules);
+    ruleng_rules_free(&ctx->rules);
     ubus_free(ctx->ubus_ctx);
     free(ctx);
 }

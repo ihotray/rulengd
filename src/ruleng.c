@@ -3,12 +3,12 @@
 
 #include "ruleng.h"
 #include "ruleng_bus.h"
-#include "ruleng_model.h"
+#include "ruleng_rules.h"
 #include "utils.h"
 
 struct ruleng_ctx {
     struct ruleng_bus_ctx *bus_ctx;
-    struct ruleng_com_ctx *com_ctx;
+    struct ruleng_rules_ctx *com_ctx;
 };
 
 enum ruleng_rc
@@ -27,8 +27,8 @@ ruleng_init(const char *sock,
     }
     struct ruleng_ctx *_ctx = *ctx;
 
-    struct ruleng_com_ctx *com_ctx = NULL;
-    if (RULENG_COM_OK != ruleng_com_init(&com_ctx, model)) {
+    struct ruleng_rules_ctx *com_ctx = NULL;
+    if (RULENG_RULES_OK != ruleng_rules_ctx_init(&com_ctx, model)) {
         rc = RULENG_ERR_MODEL_INIT;
         goto cleanup_ctx;
     }
@@ -45,7 +45,7 @@ ruleng_init(const char *sock,
     goto exit;
 
 cleanup_com_ctx:
-    ruleng_com_free(com_ctx);
+    ruleng_rules_ctx_free(com_ctx);
 cleanup_ctx:
     free(_ctx);
 exit:
@@ -62,6 +62,6 @@ void
 ruleng_free(struct ruleng_ctx *ctx)
 {
     ruleng_bus_free(ctx->bus_ctx);
-    ruleng_com_free(ctx->com_ctx);
+    ruleng_rules_ctx_free(ctx->com_ctx);
     free(ctx);
 }
