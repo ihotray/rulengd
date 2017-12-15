@@ -176,7 +176,7 @@ ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules)
 
     LN_LIST_HEAD_INITIALIZE(ctx->rules);
     if (RULENG_RULES_OK != ruleng_rules_get(ctx->com_ctx, &ctx->rules, rules)) {
-        rc = RULENG_BUS_ERR_PARSE_MODEL;
+        rc = RULENG_BUS_ERR_RULES_GET;
         goto exit;
     }
 

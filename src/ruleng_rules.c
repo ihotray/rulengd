@@ -20,7 +20,6 @@
 
 struct ruleng_rules_ctx {
     struct uci_context *uci_ctx;
-    struct json_object *com;
 };
 
 void
@@ -37,7 +36,7 @@ ruleng_rules_free(struct ruleng_rules *rules)
 }
 
 enum ruleng_rules_rc
-ruleng_rules_ctx_init(struct ruleng_rules_ctx **ctx, const char *path)
+ruleng_rules_ctx_init(struct ruleng_rules_ctx **ctx)
 {
     enum ruleng_rules_rc rc = RULENG_RULES_OK;
 
@@ -57,20 +56,10 @@ ruleng_rules_ctx_init(struct ruleng_rules_ctx **ctx, const char *path)
         goto cleanup_ctx;
     }
 
-    struct json_object *com = json_object_from_file(path);
-    if (NULL == com) {
-        RULENG_ERR("failed to parse common object model: %s", path);
-        rc = RULENG_RULES_ERR_NOT_VALID;
-        goto cleanup_uci;
-    }
-
     _ctx->uci_ctx = uci_ctx;
-    _ctx->com = com;
 
     goto exit;
 
-cleanup_uci:
-    uci_free_context(uci_ctx);
 cleanup_ctx:
     free(_ctx);
 exit:
@@ -314,6 +303,5 @@ void
 ruleng_rules_ctx_free(struct ruleng_rules_ctx *ctx)
 {
     uci_free_context(ctx->uci_ctx);
-    json_object_put(ctx->com);
     free(ctx);
 }

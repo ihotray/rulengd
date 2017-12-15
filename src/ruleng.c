@@ -13,7 +13,6 @@ struct ruleng_ctx {
 
 enum ruleng_rc
 ruleng_init(const char *sock,
-            const char *model,
             char *rules,
             struct ruleng_ctx **ctx)
 {
@@ -28,8 +27,8 @@ ruleng_init(const char *sock,
     struct ruleng_ctx *_ctx = *ctx;
 
     struct ruleng_rules_ctx *com_ctx = NULL;
-    if (RULENG_RULES_OK != ruleng_rules_ctx_init(&com_ctx, model)) {
-        rc = RULENG_ERR_MODEL_INIT;
+    if (RULENG_RULES_OK != ruleng_rules_ctx_init(&com_ctx)) {
+        rc = RULENG_ERR_RULES_INIT;
         goto cleanup_ctx;
     }
 

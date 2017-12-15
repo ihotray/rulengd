@@ -29,7 +29,7 @@ struct ruleng_rule {
 LN_LIST_HEAD(ruleng_rules, ruleng_rule);
 
 enum ruleng_rules_rc
-ruleng_rules_ctx_init(struct ruleng_rules_ctx **, const char *);
+ruleng_rules_ctx_init(struct ruleng_rules_ctx **);
 
 enum ruleng_rules_rc
 ruleng_rules_get(struct ruleng_rules_ctx *, struct ruleng_rules *, char *);

@@ -8,7 +8,6 @@
 
 #define RULENG_DEFAULT_UBUS_PATH "/var/run/ubus.sock"
 #define RULENG_DEFAULT_RULES_PATH "rules"
-#define RULENG_DEFAULT_MODEL_PATH "../test/model.json"
 
 static void
 ruleng_usage(char *n)
@@ -18,7 +17,6 @@ ruleng_usage(char *n)
         "Options:\n"
         "  -s <socket> path to ubus socket [" RULENG_DEFAULT_UBUS_PATH "]\n"
         "  -r <rules> path to the uci rules [" RULENG_DEFAULT_RULES_PATH "]\n"
-        "  -m <model> path to the json model [" RULENG_DEFAULT_MODEL_PATH "]\n"
         "  -h help\n\n"
         , n);
 }
@@ -28,7 +26,6 @@ main(int argc, char **argv)
 {
     char *sock = RULENG_DEFAULT_UBUS_PATH;
     char *rules = RULENG_DEFAULT_RULES_PATH;
-    char *model = RULENG_DEFAULT_MODEL_PATH;
 
     int c = -1;
     while((c = getopt(argc, argv,
@@ -44,9 +41,6 @@ main(int argc, char **argv)
         case 'r':
             rules = optarg;
             break;
-        case 'm':
-            model = optarg;
-            break;
         default:
             ruleng_usage(argv[0]);
             return EXIT_FAILURE;
@@ -56,7 +50,7 @@ main(int argc, char **argv)
     int rc = EXIT_FAILURE;
 
     struct ruleng_ctx *ctx = NULL;
-    if (ruleng_init(sock, model, rules, &ctx) != RULENG_OK)
+    if (RULENG_OK != ruleng_init(sock, rules, &ctx))
         goto exit;
 
     ruleng_uloop_run(ctx);
