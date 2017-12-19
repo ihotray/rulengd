@@ -1,0 +1,41 @@
+
+========
+Overview
+========
+
+rulengd listens for events and executes speficied methods if the incoming event
+arguments contain speficied ones. Events and methods are specified in UCI config
+file, e.g.
+
+config rule
+    option event 'wifi.radio.channel_changed'
+    list event_data "{'reason': 1}" 
+    list event_data "{'channels': [1, 2, 3]}"
+    option method 'file->write'
+    list method_data "{'path': '/tmp/test_file.txt'}"
+    list method_data "{'data': 'channel changed!'}"
+
+This means we are listening for 'wifi.radio.channel_changed' event. If that
+event occurs, and contains arguments {'reason': 1} and {'channels': [1, 2, 3]},
+we execute method 'write' on object 'file' with arguments {'path':
+'/tmp/test_file.txt'} and {'data': 'channel changed!'}. Object and array
+arguments must be primitive types (we can't have object in the array).
+
+========
+Building
+========
+
+mkdir build && cd build
+cmake ..
+make
+
+========
+Example
+========
+
+After building, do 'sudo make install'. This will copy
+'./test/ruleng-test-rules' to '/etc/config'. Start 'rulengd', and test it with
+
+ubus send "wifi.radio.channel_changed" "{'radio':0, 'reason':1, 'channels': [1,2,3], 'non-specified-key': 'non-specified-value'}".
+
+This should write 'channel changed!' in the '/tmp/test_file.txt'.
