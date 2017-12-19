@@ -62,6 +62,55 @@ ruleng_bus_blob_find_key(struct blob_attr *b, const char *k)
 }
 
 static bool
+ruleng_bus_blob_compare_primitive(struct blob_attr *a, struct blob_attr *b)
+{
+    bool rc = false;
+
+    switch(blobmsg_type(a)) {
+    case BLOBMSG_TYPE_STRING:
+        if (0 != strcmp(blobmsg_get_string(a), blobmsg_get_string(b)))
+            goto exit;
+        break;
+    case BLOBMSG_TYPE_INT64:
+        if (blobmsg_get_u64(a) != blobmsg_get_u64(b))
+            goto exit;
+        break;
+    case BLOBMSG_TYPE_INT32:
+        if (blobmsg_get_u32(a) != blobmsg_get_u32(b))
+            goto exit;
+        break;
+    case BLOBMSG_TYPE_INT16:
+        if (blobmsg_get_u16(a) != blobmsg_get_u16(b))
+            goto exit;
+        break;
+    case BLOBMSG_TYPE_BOOL:
+        if (blobmsg_get_bool(a) != blobmsg_get_bool(b))
+            goto exit;
+        break;
+    default:
+        goto exit;
+    }
+
+    rc = true;
+exit:
+    return rc;
+}
+
+static bool
+ruleng_bus_blob_compare_array(struct blob_attr *a, struct blob_attr *b)
+{
+    char *as = blobmsg_format_json(a, true);
+    char *bs = blobmsg_format_json(b, true);
+
+    bool rc = !strcmp(as, bs);
+
+    free(as);
+    free(bs);
+
+    return rc;
+}
+
+static bool
 ruleng_bus_blob_check_subset(struct blob_attr *a, struct blob_attr *b)
 {
     bool rc = false;
@@ -73,29 +122,16 @@ ruleng_bus_blob_check_subset(struct blob_attr *a, struct blob_attr *b)
         if (NULL == k || blobmsg_type(e) != blobmsg_type(k))
             goto exit;
 
-        switch(blobmsg_type(k)) {
-        case BLOBMSG_TYPE_STRING:
-            if (0 != strcmp(blobmsg_get_string(e), blobmsg_get_string(k)))
+        switch(blobmsg_type(e)) {
+        case BLOBMSG_TYPE_ARRAY:
+            if (false == ruleng_bus_blob_compare_array(e, k))
                 goto exit;
             break;
-        case BLOBMSG_TYPE_INT64:
-            if (blobmsg_get_u64(e) != blobmsg_get_u64(k))
-                goto exit;
-            break;
-        case BLOBMSG_TYPE_INT32:
-            if (blobmsg_get_u32(e) != blobmsg_get_u32(k))
-                goto exit;
-            break;
-        case BLOBMSG_TYPE_INT16:
-            if (blobmsg_get_u16(e) != blobmsg_get_u16(k))
-                goto exit;
-            break;
-        case BLOBMSG_TYPE_BOOL:
-            if (blobmsg_get_bool(e) != blobmsg_get_bool(k))
-                goto exit;
-            break;
-        default:
+        case BLOBMSG_TYPE_TABLE:
             goto exit;
+        default:
+            if (false == ruleng_bus_blob_compare_primitive(e, k))
+                goto exit;
         }
     }
 

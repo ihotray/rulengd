@@ -68,9 +68,9 @@ exit:
 
 static enum ruleng_rules_rc
 ruleng_rules_rules_parse_object_method(struct uci_context *ctx,
-                                     struct uci_section *s,
-                                     char **method,
-                                     char **object)
+                                       struct uci_section *s,
+                                       char **method,
+                                       char **object)
 {
     enum ruleng_rules_rc rc = RULENG_RULES_OK;
 
