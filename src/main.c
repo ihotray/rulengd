@@ -16,7 +16,7 @@ ruleng_usage(char *n)
         "\nUsage: %s: <options>\n"
         "Options:\n"
         "  -s <socket> path to ubus socket [" RULENG_DEFAULT_UBUS_PATH "]\n"
-        "  -r <rules> path to the uci rules [" RULENG_DEFAULT_RULES_PATH "]\n"
+        "  -r <rules> uci rules config filename [" RULENG_DEFAULT_RULES_PATH "]\n"
         "  -h help\n\n"
         , n);
 }
