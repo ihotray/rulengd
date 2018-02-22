@@ -3,23 +3,50 @@
 Overview
 ========
 
-rulengd listens for events and executes speficied methods if the incoming event
-arguments contain speficied ones. Events and methods are specified in UCI config
-file, e.g.
+rulengd is OpenWrt version of IFTTT (If This Then That) mechanism. It allows configuring rules
+where options are ubus events with list of data and ubus methods with list of arguments.
+rulengd registers to all ubus events on the system and keeps track of each configured rule.
+When an event of interest is received, it compares it with the configured rule and if the
+expected data of the event matches with the data of the event received, it invokes the
+configured ubus method with the given arguments.
+
+With rulengd it is possible to add high level rules, for example presence rule where event is
+client and data is the MAC address of a specific person and the method to be executed is to
+sending an SMS to a specific email address with a specific message which are the arguments.
+It is also possible to create lower level rules such as when DSL training event is received blink
+Broadband LED.
+
+With rulengd in the system, instead of creating applications to execute actions upon
+receiving specific events, it suffices to create corresponding rule entries to ruleng UCI
+configuration file.
 
 config rule
-    option event 'wifi.radio.channel_changed'
-    list event_data "{'reason': 1}" 
-    list event_data "{'channels': [1, 2, 3]}"
-    option method 'file->write'
-    list method_data "{'path': '/tmp/test_file.txt'}"
-    list method_data "{'data': 'channel changed!'}"
+    option event 'client'
+    list event_data "{'action': 'connect'}"
+    list event_data "{'macaddr': '00:e0:4c:68:05:9a'}"
+    option method 'smtp.client->send'
+    list method_data "{'email': 'email@domain.com'}"
+    list method_data "{'data': 'Alice is home'}"
 
-This means we are listening for 'wifi.radio.channel_changed' event. If that
-event occurs, and contains arguments {'reason': 1} and {'channels': [1, 2, 3]},
-we execute method 'write' on object 'file' with arguments {'path':
-'/tmp/test_file.txt'} and {'data': 'channel changed!'}. Object and array
-arguments must be primitive types (we can't have object in the array).
+The rule above means we are listening for 'client' event. If that
+event occurs, and contains arguments {'action': 'connect'} and {'macaddr': '00:e0:4c:68:05:9a'},
+on ubus: { "client": {"action":"connect","macaddr":"00:e0:4c:68:05:9a"} }
+we execute method 'send' on object 'smtp.client' with arguments
+{'email':'email@domain.com'} and {'data': 'Alice is home'}.
+
+config rule
+    option event 'dsl'
+    list event_data "{'line': 0}"
+    list event_data "{'link': 'training'}"
+    option method 'led.broadband->set'
+    list method_data "{'state': 'notice'}"
+
+This means we are listening for 'dsl' event. If that
+event occurs, and contains arguments {'line': 0} and {'link': 'training'},
+on ubus: { "dsl": {"line":0, "link":"training"} }
+we execute method 'set' on object 'led.broadband' with argument {'state':'notice'}.
+
+Note: Object and array arguments must be primitive types (we can't have object in the array).
 
 ========
 Building
@@ -36,6 +63,6 @@ Example
 After building, do 'sudo make install'. This will copy
 './test/ruleng-test-rules' to '/etc/config'. Start 'rulengd', and test it with
 
-ubus send "wifi.radio.channel_changed" "{'radio':0, 'reason':1, 'channels': [1,2,3], 'non-specified-key': 'non-specified-value'}".
+ubus send "test.event" "{'test':1, 'reason':1, 'tests': [1,2,3], 'non-specified-key': 'non-specified-value'}".
 
-This should write 'channel changed!' in the '/tmp/test_file.txt'.
+This should write 'test event received!' to the '/tmp/test_event.txt'.
