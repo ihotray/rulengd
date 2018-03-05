@@ -38,17 +38,6 @@ ruleng_ubus_data_cb(struct ubus_request *req, int type, struct blob_attr *msg)
     free(json);
 }
 
-static struct ruleng_rule *
-ruleng_bus_find_rule(struct ruleng_rules *rules, const char *ev)
-{
-    struct ruleng_rule *r = NULL;
-    LN_LIST_FOREACH(r, rules, node) {
-        if (0 == strcmp(r->event.name, ev))
-            return r;
-    }
-    return NULL;
-}
-
 static struct blob_attr *
 ruleng_bus_blob_find_key(struct blob_attr *b, const char *k)
 {
@@ -159,28 +148,38 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
     struct ruleng_bus_ctx *ctx =
         container_of(handler, struct ruleng_bus_ctx, handler);
 
-    struct ruleng_rule *r = ruleng_bus_find_rule(&ctx->rules, type);
-    if (NULL == r) {
-        RULENG_ERR("%s: rule not found", type);
+
+    bool match = false;
+    struct ruleng_rule *r = NULL;
+    LN_LIST_FOREACH(r, &ctx->rules, node) {
+        if (0 != strcmp(r->event.name, type)) {
+            continue;
+        }
+        RULENG_INFO("%s: found matching event name", type);
+        struct blob_buf eargs = {0};
+        blob_buf_init(&eargs, 0);
+        blobmsg_add_object(&eargs, r->event.args);
+
+        match = ruleng_bus_take_action(eargs.head, msg);
+        if (false == match) {
+            blob_buf_free(&eargs);
+            RULENG_ERR("%s: event_data not matched", type);
+            continue;
+        }
+
+        RULENG_INFO("%s: event_data matched, doing ubus call", type);
+        blob_buf_free(&eargs);
+        break;
+    }
+    if(false == match) {
         goto exit;
     }
-    RULENG_INFO("%s: rule found", type);
-
-    struct blob_buf eargs = {0};
-    blob_buf_init(&eargs, 0);
-    blobmsg_add_object(&eargs, r->event.args);
-
-    if (false == ruleng_bus_take_action(eargs.head, msg))
-        goto cleanup_args;
-
-    RULENG_INFO("%s: rule exists, doing ubus call", type);
 
     uint32_t id;
     if (ubus_lookup_id(ubus_ctx, r->action.object, &id)) {
         RULENG_ERR("%s: failed to find ubus object", type);
-        goto cleanup_args;
+        goto exit;
     }
-
     struct blob_buf buff = {0};
     blob_buf_init(&buff, 0);
     blobmsg_add_object(&buff, r->action.args);
@@ -199,8 +198,6 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
 
 cleanup_buff:
     blob_buf_free(&buff);
-cleanup_args:
-    blob_buf_free(&eargs);
 exit:
     return;
 }
