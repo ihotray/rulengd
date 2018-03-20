@@ -129,52 +129,10 @@ exit:
     return rc;
 }
 
-static bool
-ruleng_bus_take_action(struct blob_attr *a, struct blob_attr *b)
+static void ruleng_ubus_call(struct ubus_context *ubus_ctx,
+                            struct ruleng_rule *r,
+                            const char *type)
 {
-    return ruleng_bus_blob_check_subset(a, b);
-}
-
-static void
-ruleng_event_cb(struct ubus_context *ubus_ctx,
-                struct ubus_event_handler *handler,
-                const char *type,
-                struct blob_attr *msg)
-{
-    char *data = blobmsg_format_json(msg, true);
-    RULENG_INFO("{ \"%s\": %s }\n", type, data);
-    free(data);
-
-    struct ruleng_bus_ctx *ctx =
-        container_of(handler, struct ruleng_bus_ctx, handler);
-
-
-    bool match = false;
-    struct ruleng_rule *r = NULL;
-    LN_LIST_FOREACH(r, &ctx->rules, node) {
-        if (0 != strcmp(r->event.name, type)) {
-            continue;
-        }
-        RULENG_INFO("%s: found matching event name", type);
-        struct blob_buf eargs = {0};
-        blob_buf_init(&eargs, 0);
-        blobmsg_add_object(&eargs, r->event.args);
-
-        match = ruleng_bus_take_action(eargs.head, msg);
-        if (false == match) {
-            blob_buf_free(&eargs);
-            RULENG_ERR("%s: event_data not matched", type);
-            continue;
-        }
-
-        RULENG_INFO("%s: event_data matched, doing ubus call", type);
-        blob_buf_free(&eargs);
-        break;
-    }
-    if(false == match) {
-        goto exit;
-    }
-
     uint32_t id;
     if (ubus_lookup_id(ubus_ctx, r->action.object, &id)) {
         RULENG_ERR("%s: failed to find ubus object", type);
@@ -199,6 +157,52 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
 cleanup_buff:
     blob_buf_free(&buff);
 exit:
+    return;
+}
+
+static bool
+ruleng_bus_take_action(struct blob_attr *a, struct blob_attr *b)
+{
+    return ruleng_bus_blob_check_subset(a, b);
+}
+
+static void
+ruleng_event_cb(struct ubus_context *ubus_ctx,
+                struct ubus_event_handler *handler,
+                const char *type,
+                struct blob_attr *msg)
+{
+    char *data = blobmsg_format_json(msg, true);
+    RULENG_INFO("{ \"%s\": %s }\n", type, data);
+    free(data);
+
+    struct ruleng_bus_ctx *ctx =
+        container_of(handler, struct ruleng_bus_ctx, handler);
+
+
+    struct ruleng_rule *r = NULL;
+    LN_LIST_FOREACH(r, &ctx->rules, node) {
+        if (0 != strcmp(r->event.name, type)) {
+            continue;
+        }
+        struct blob_buf eargs = {0};
+        blob_buf_init(&eargs, 0);
+        blobmsg_add_object(&eargs, r->event.args);
+
+        bool match = false;
+        match = ruleng_bus_take_action(eargs.head, msg);
+        if (false == match) {
+            blob_buf_free(&eargs);
+            RULENG_ERR("%s: event_data not matched", type);
+            continue;
+        }
+
+        RULENG_INFO("%s: found matching event name and data, doing ubus call", type);
+        blob_buf_free(&eargs);
+
+        ruleng_ubus_call(ubus_ctx, r, type);
+    }
+
     return;
 }
 
