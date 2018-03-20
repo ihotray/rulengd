@@ -193,7 +193,6 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
         match = ruleng_bus_take_action(eargs.head, msg);
         if (false == match) {
             blob_buf_free(&eargs);
-            RULENG_ERR("%s: event_data not matched", type);
             continue;
         }
 
