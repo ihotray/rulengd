@@ -32,6 +32,7 @@ set(SOURCES
   src/ruleng.c
   src/ruleng_ubus.c
   src/ruleng_rules.c
+  src/ruleng_json.c
   )
 
 add_executable(rulengd ${SOURCES})

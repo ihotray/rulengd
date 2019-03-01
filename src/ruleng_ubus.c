@@ -11,6 +11,7 @@
 #include <json-c/json.h>
 
 #include "ruleng_bus.h"
+#include "ruleng_json.h"
 #include "utils.h"
 
 struct ruleng_bus_ctx {
@@ -129,13 +130,12 @@ exit:
     return rc;
 }
 
-static void ruleng_ubus_call(struct ubus_context *ubus_ctx,
-                            struct ruleng_rule *r,
-                            const char *type)
+void ruleng_ubus_call(struct ubus_context *ubus_ctx,
+                            struct ruleng_rule *r)
 {
     uint32_t id;
     if (ubus_lookup_id(ubus_ctx, r->action.object, &id)) {
-        RULENG_ERR("%s: failed to find ubus object", type);
+        RULENG_ERR("%s: failed to find ubus object", r->action.object);
         goto exit;
     }
     struct blob_buf buff = {0};
@@ -160,7 +160,7 @@ exit:
     return;
 }
 
-static bool
+bool
 ruleng_bus_take_action(struct blob_attr *a, struct blob_attr *b)
 {
     return ruleng_bus_blob_check_subset(a, b);
@@ -199,7 +199,7 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
         RULENG_INFO("%s: found matching event name and data, doing ubus call", type);
         blob_buf_free(&eargs);
 
-        ruleng_ubus_call(ubus_ctx, r, type);
+        ruleng_ubus_call(ubus_ctx, r);
     }
 
     return;
@@ -226,6 +226,27 @@ ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules)
             goto exit;
         }
     }
+
+    LN_LIST_HEAD_INITIALIZE(ctx->json_rules);
+    rc= ruleng_process_json(ctx->com_ctx, &ctx->json_rules, rules);
+	//Register for ubus events here
+	ctx->json_handler.cb = ruleng_event_json_cb;
+    struct ruleng_json_rule *jr = NULL;
+    LN_LIST_FOREACH(jr, &ctx->json_rules, node) {
+		for(int i = 0; i < B_COUNT(jr->rules_bitmask); ++i) {
+			char *event_name = get_json_string_object(\
+								json_object_array_get_idx(jr->event.args,i),\
+								JSON_EVENT_FIELD);
+			if(!event_name)
+					continue;
+			RULENG_INFO("Regiser ubus event[%s]", event_name);
+			if (ubus_register_event_handler(ctx->ubus_ctx, &ctx->json_handler, event_name)) {
+				RULENG_ERR("failed to register event handler");
+				rc = RULENG_BUS_ERR_REGISTER_EVENT;
+				goto exit;
+			}
+		}
+	}
 
 exit:
     return rc;
@@ -282,6 +303,7 @@ void
 ruleng_bus_free(struct ruleng_bus_ctx *ctx)
 {
     ruleng_rules_free(&ctx->rules);
+    ruleng_json_rules_free(&ctx->json_rules);
     ubus_free(ctx->ubus_ctx);
     free(ctx);
 }

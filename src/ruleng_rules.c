@@ -11,6 +11,7 @@
 
 #include "ruleng_rules.h"
 #include "ruleng_list.h"
+#include "ruleng_json.h"
 #include "utils.h"
 
 #define RULENG_EVENT_FIELD "event"
@@ -18,9 +19,18 @@
 #define RULENG_METHOD_FIELD "method"
 #define RULENG_METHOD_ARG_FIELD "method_data"
 
-struct ruleng_rules_ctx {
-    struct uci_context *uci_ctx;
-};
+
+void
+ruleng_json_rules_free(struct ruleng_json_rules *rules)
+{
+    struct ruleng_json_rule *rule = NULL, *tmp = NULL;
+    LN_LIST_FOREACH_SAFE(rule, rules, node, tmp) {
+        json_object_put(rule->action.args);
+        free(rule->event.name);
+        json_object_put(rule->event.args);
+        free(rule);
+    }
+}
 
 void
 ruleng_rules_free(struct ruleng_rules *rules)
@@ -287,10 +297,14 @@ ruleng_rules_get(struct ruleng_rules_ctx *ctx, struct ruleng_rules *rules,
         free(rule->event.name);
         json_object_put(rule->event.args);
     cleanup_rule:
-        free(rule);
-        goto cleanup_rules;
+		if(rc == RULENG_RULES_ERR_NOT_VALID) {
+    		rc = RULENG_RULES_OK;
+        	free(rule);
+		} else {
+        	goto cleanup_rules;
+		}
     }
-
+	uci_unload(ctx->uci_ctx, ptr.p);
     goto exit;
 
 cleanup_rules:

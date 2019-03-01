@@ -11,7 +11,9 @@ enum ruleng_rules_rc {
     RULENG_RULES_ERR_NOT_VALID,
 };
 
-struct ruleng_rules_ctx;
+struct ruleng_rules_ctx {
+    struct uci_context *uci_ctx;
+};
 
 struct ruleng_rule {
     LN_LIST_NODE(ruleng_rule) node;
