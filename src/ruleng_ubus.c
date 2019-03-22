@@ -14,13 +14,6 @@
 #include "ruleng_json.h"
 #include "utils.h"
 
-struct ruleng_bus_ctx {
-    struct ubus_context *ubus_ctx;
-    struct ruleng_rules_ctx *com_ctx;
-    struct ubus_event_handler handler;
-    struct ruleng_rules rules;
-};
-
 static void
 ruleng_ubus_complete_cb(struct ubus_request *req, int ret)
 {
