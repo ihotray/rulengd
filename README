@@ -48,6 +48,56 @@ we execute method 'set' on object 'led.broadband' with argument {'state':'notice
 
 Note: Object and array arguments must be primitive types (we can't have object in the array).
 
+For more granular event(s) and method(s) mapping, it is possible to create JSON files as recipes
+such as in the example below:
+
+config rule
+    option recipe "/etc/recipe_1.json"
+
+# cat /etc/recipe_1.json
+{
+    "time" : {
+        "event_period" : 10,
+        "execution_interval" : 1
+    },
+    "if" : [
+        {
+            "event": "wifi.sta",
+            "match":{
+                "macaddr":"00:e0:4c:68:05:9a",
+                "action":"associated"
+            }
+        },
+        {   "event":"client",
+            "match": {
+                "action":"connect",
+                "macaddr":"00:e0:4c:68:05:9a",
+                "ipaddr":"192.168.1.231",
+                "network":"lan"
+            }
+        }
+    ],
+    "then" : [
+        {
+            "object": "smtp.client",
+            "method":"send",
+            "args" : {
+                "email":"email@domain.com",
+                "data": "Alice is home"
+            }
+        },
+        {
+            "object":"wifi.ap.wlan0",
+            "method":"disassociate",
+            "args": {
+                "macaddr":"00:e0:4c:68:05:9a"
+            }
+        }
+    ]
+}
+
+It means if you receive wifi.sta and client events with the matching arguments within 10 seconds after each other, execute the methods in then array with 1 second intervals
+
 ========
 Building
 ========
