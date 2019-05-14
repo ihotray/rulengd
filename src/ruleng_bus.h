@@ -36,8 +36,7 @@ void
 ruleng_bus_free(struct ruleng_bus_ctx *);
 
 bool
-ruleng_bus_take_action(struct blob_attr *a, struct blob_attr *b);
+ruleng_bus_take_action(struct blob_attr *a, struct blob_attr *b, bool regex);
 
 void
 ruleng_ubus_call(struct ubus_context *ubus_ctx, struct ruleng_rule *r);
-

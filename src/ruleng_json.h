@@ -10,6 +10,7 @@
 #define JSON_TOTAL_WAIT_FIELD "event_period"
 #define JSON_SLEEP_FIELD "execution_interval"
 #define JSON_EVENT_FIELD "event"
+#define JSON_REGEX_FIELD "regex"
 #define JSON_MATCH_FIELD "match"
 #define JSON_OBJECT_FIELD "object"
 #define JSON_METHOD_FIELD "method"
@@ -25,6 +26,7 @@
 
 struct ruleng_json_rule {
     LN_LIST_NODE(ruleng_json_rule) node;
+	bool regex;
     struct ruleng_rules_time {
         int total_wait;
         int sleep_time;

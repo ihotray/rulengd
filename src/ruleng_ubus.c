@@ -46,35 +46,40 @@ ruleng_bus_blob_find_key(struct blob_attr *b, const char *k)
 }
 
 static bool
-ruleng_bus_blob_compare_primitive(struct blob_attr *a, struct blob_attr *b)
+ruleng_bus_blob_compare_primitive(struct blob_attr *a, struct blob_attr *b,
+		bool regex)
 {
     bool rc = false;
-	regex_t regex;
+	regex_t regex_exp;
 	int reti;
 	char msgbuf[100];
 
     switch(blobmsg_type(a)) {
     case BLOBMSG_TYPE_STRING:
-		reti = regcomp(&regex, blobmsg_get_string(a), 0);
-		if (reti) {
-			RULENG_ERR("Could not compile regex\n");
-			goto exit;
-		}
+		if (!regex) {
+			if (0 != strcmp(blobmsg_get_string(a), blobmsg_get_string(b)))
+				goto exit;
+		} else {
+			reti = regcomp(&regex_exp, blobmsg_get_string(a), 0);
+			if (reti) {
+				RULENG_ERR("Could not compile regex\n");
+				goto exit;
+			}
 
-		reti = regexec(&regex, blobmsg_get_string(b), 0, NULL, 0);
-		if (!reti) {
-			RULENG_INFO("Match");
-			break;
-		} else if (reti == REG_NOMATCH)
-			goto exit;
-		else {
-			regerror(reti, &regex, msgbuf, sizeof(msgbuf));
-			RULENG_ERR("Regex match failed: %s\n", msgbuf);
-			regfree(&regex);
-			goto exit;
-		}
+			reti = regexec(&regex_exp, blobmsg_get_string(b), 0, NULL, 0);
+			if (!reti) {
+				RULENG_INFO("Match");
+			} else if (reti == REG_NOMATCH)
+				goto exit;
+			else {
+				regerror(reti, &regex_exp, msgbuf, sizeof(msgbuf));
+				RULENG_ERR("Regex match failed: %s\n", msgbuf);
+				regfree(&regex_exp);
+				goto exit;
+			}
 
-		regfree(&regex);
+			regfree(&regex_exp);
+		}
 		break;
     case BLOBMSG_TYPE_INT64:
         if (blobmsg_get_u64(a) != blobmsg_get_u64(b))
@@ -116,7 +121,8 @@ ruleng_bus_blob_compare_array(struct blob_attr *a, struct blob_attr *b)
 }
 
 static bool
-ruleng_bus_blob_check_subset(struct blob_attr *a, struct blob_attr *b)
+ruleng_bus_blob_check_subset(struct blob_attr *a, struct blob_attr *b,
+		bool regex)
 {
     bool rc = false;
 
@@ -135,7 +141,7 @@ ruleng_bus_blob_check_subset(struct blob_attr *a, struct blob_attr *b)
         case BLOBMSG_TYPE_TABLE:
             goto exit;
         default:
-            if (false == ruleng_bus_blob_compare_primitive(e, k))
+            if (false == ruleng_bus_blob_compare_primitive(e, k, regex))
                 goto exit;
         }
     }
@@ -176,9 +182,9 @@ exit:
 }
 
 bool
-ruleng_bus_take_action(struct blob_attr *a, struct blob_attr *b)
+ruleng_bus_take_action(struct blob_attr *a, struct blob_attr *b, bool regex)
 {
-    return ruleng_bus_blob_check_subset(a, b);
+    return ruleng_bus_blob_check_subset(a, b, regex);
 }
 
 static void
@@ -205,7 +211,7 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
         blobmsg_add_object(&eargs, r->event.args);
 
         bool match = false;
-        match = ruleng_bus_take_action(eargs.head, msg);
+        match = ruleng_bus_take_action(eargs.head, msg, false);
         if (false == match) {
             blob_buf_free(&eargs);
             continue;

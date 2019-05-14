@@ -73,7 +73,7 @@ void ruleng_event_json_cb(struct ubus_context *ubus_ctx, \
 			blob_buf_init(&eargs, 0);
 			blobmsg_add_object(&eargs, args);
 			bool match = false;
-			match = ruleng_bus_take_action(eargs.head, msg);
+			match = ruleng_bus_take_action(eargs.head, msg, r->regex);
 			if (true == match) {
 				if(r->last_hit_time == 0)
 					r->last_hit_time = now;
@@ -144,6 +144,8 @@ ruleng_process_json(struct ruleng_rules_ctx *ctx, struct ruleng_json_rules *rule
 				json_object *temp = json_object_array_get_idx(rule->event.args, i);
 				sprintf(event_name+strlen(event_name),"%s%s",get_json_string_object(temp, JSON_EVENT_FIELD),
 				JSON_EVENT_SEP);
+				json_object_object_get_ex(temp, JSON_REGEX_FIELD, &tmp);
+				rule->regex = json_object_get_boolean(tmp);
 		}
 		rule->rules_hit = rule->rules_bitmask;
 		rule->event.name = strdup(event_name);
