@@ -3,6 +3,7 @@
 #include <ctype.h>
 
 #include <libubus.h>
+#include <regex.h>
 
 #include <libubox/uloop.h>
 #include <libubus.h>
@@ -48,12 +49,33 @@ static bool
 ruleng_bus_blob_compare_primitive(struct blob_attr *a, struct blob_attr *b)
 {
     bool rc = false;
+	regex_t regex;
+	int reti;
+	char msgbuf[100];
 
     switch(blobmsg_type(a)) {
     case BLOBMSG_TYPE_STRING:
-        if (0 != strcmp(blobmsg_get_string(a), blobmsg_get_string(b)))
-            goto exit;
-        break;
+		reti = regcomp(&regex, blobmsg_get_string(a), 0);
+		if (reti) {
+			RULENG_ERR("Could not compile regex\n");
+			goto exit;
+		}
+
+		reti = regexec(&regex, blobmsg_get_string(b), 0, NULL, 0);
+		if (!reti) {
+			RULENG_INFO("Match");
+			break;
+		} else if (reti == REG_NOMATCH)
+			goto exit;
+		else {
+			regerror(reti, &regex, msgbuf, sizeof(msgbuf));
+			RULENG_ERR("Regex match failed: %s\n", msgbuf);
+			regfree(&regex);
+			goto exit;
+		}
+
+		regfree(&regex);
+		break;
     case BLOBMSG_TYPE_INT64:
         if (blobmsg_get_u64(a) != blobmsg_get_u64(b))
             goto exit;
