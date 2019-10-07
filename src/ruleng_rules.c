@@ -7,6 +7,9 @@
 #include <limits.h>
 #include <errno.h>
 
+#include <libubox/uloop.h>
+#include <libubus.h>
+#include <libubox/blobmsg_json.h>
 #include <uci.h>
 
 #include "ruleng_rules.h"
@@ -38,9 +41,10 @@ ruleng_rules_free(struct ruleng_rules *rules)
     struct ruleng_rule *rule = NULL, *tmp = NULL;
     LN_LIST_FOREACH_SAFE(rule, rules, node, tmp) {
         json_object_put(rule->action.args);
-        free(rule->event.name);
         json_object_put(rule->event.args);
-        free(rule->action.object);
+        free((void *) rule->event.name);
+		free((void *) rule->action.name);
+		free((void *) rule->action.object);
         free(rule);
     }
 }
@@ -92,6 +96,7 @@ ruleng_rules_rules_parse_object_method(struct uci_context *ctx,
     }
 
     char *temp = strdup(om);
+    char *orig_tmp = temp;
     if (NULL == temp) {
         RULENG_ERR("%s: failed to allocate object method", s->type);
         rc = RULENG_RULES_ERR_ALLOC;
@@ -111,12 +116,13 @@ ruleng_rules_rules_parse_object_method(struct uci_context *ctx,
         goto cleanup_temp;
     }
 
-    *method = temp + 1;
+    *object = strdup(*object);
+    *method = strdup(temp + 1);
 
-    goto exit;
+//    goto exit;
 
 cleanup_temp:
-    free(temp);
+    free(orig_tmp);
 exit:
     return rc;
 }
@@ -294,7 +300,7 @@ ruleng_rules_get(struct ruleng_rules_ctx *ctx, struct ruleng_rules *rules,
         continue;
 
     cleanup_event_args:
-        free(rule->event.name);
+        free((char *) rule->event.name);
         json_object_put(rule->event.args);
     cleanup_rule:
 		if(rc == RULENG_RULES_ERR_NOT_VALID) {

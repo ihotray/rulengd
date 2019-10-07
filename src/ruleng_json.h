@@ -40,6 +40,7 @@ struct ruleng_json_rule {
     } action;
 	uint8_t rules_bitmask;
 	uint8_t rules_hit;
+    uint8_t hits;
 	int time_wasted;
 	time_t last_hit_time;
 };

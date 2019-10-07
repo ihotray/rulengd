@@ -40,3 +40,12 @@ ruleng_bus_take_action(struct blob_attr *a, struct blob_attr *b, bool regex);
 
 void
 ruleng_ubus_call(struct ubus_context *ubus_ctx, struct ruleng_rule *r);
+
+void
+ruleng_event_cb(struct ubus_context *ubus_ctx,
+                struct ubus_event_handler *handler,
+                const char *type,
+                struct blob_attr *msg);
+
+int ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules,
+                enum ruleng_bus_rc *rc);
