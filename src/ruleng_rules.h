@@ -18,12 +18,12 @@ struct ruleng_rules_ctx {
 struct ruleng_rule {
     LN_LIST_NODE(ruleng_rule) node;
     struct ruleng_rules_event {
-        char *name;
+        const char *name;
         struct json_object *args;
     } event;
     struct ruleng_rules_action {
-        char *object;
-        char *name;
+        const char *object;
+        const char *name;
         struct json_object *args;
     } action;
 };

@@ -2,6 +2,9 @@
 #include <uci.h>
 #include <string.h>
 #include <time.h>
+#include <libubox/uloop.h>
+#include <libubus.h>
+#include <libubox/blobmsg_json.h>
 
 #include "utils.h"
 #include "ruleng_bus.h"
@@ -31,7 +34,13 @@ static void ruleng_take_json_action(struct ubus_context *u_ctx, struct ruleng_js
 		struct ruleng_rule *rr = malloc(sizeof(struct ruleng_rule));
 		json_object_object_get_ex(temp, JSON_ARGS_FIELD, &rr->action.args);
 		rr->action.object = get_json_string_object(temp, JSON_OBJECT_FIELD);
+		if (!rr->action.object)
+			continue;
+
 		rr->action.name = get_json_string_object(temp, JSON_METHOD_FIELD);
+		if (!rr->action.name)
+			continue;
+
 		RULENG_INFO("calling[%s->%s]", rr->action.object, rr->action.name);
     	ruleng_ubus_call(u_ctx, rr);
 		if(i < len-1) {
@@ -58,23 +67,27 @@ void ruleng_event_json_cb(struct ubus_context *ubus_ctx, \
 
     struct ruleng_json_rule *r = NULL;
     LN_LIST_FOREACH(r, &ctx->json_rules, node) {
-			RULENG_INFO("Process event [%s]", r->event.name);
+		RULENG_INFO("Process event [%s]", r->event.name);
 		char *event_titles = strdup(r->event.name);
 		char *event = NULL;
 
-		for(int i=0; event = strsep(&event_titles, JSON_EVENT_SEP); ++i) {
+		for(int i=0; (event = strsep(&event_titles, JSON_EVENT_SEP)); ++i) {
 			if (0 != strcmp(event, type))
 				continue;
 
 			json_object *jobj = json_object_array_get_idx(r->event.args, i);
 			json_object *args;
 			json_object_object_get_ex(jobj, JSON_MATCH_FIELD, &args);
+			if (!args)
+				continue;
+
 			struct blob_buf eargs = {0};
 			blob_buf_init(&eargs, 0);
 			blobmsg_add_object(&eargs, args);
 			bool match = false;
 			match = ruleng_bus_take_action(eargs.head, msg, r->regex);
 			if (true == match) {
+				r->hits++;
 				if(r->last_hit_time == 0)
 					r->last_hit_time = now;
 				r->time_wasted += (now - r->last_hit_time);
@@ -129,14 +142,25 @@ ruleng_process_json(struct ruleng_rules_ctx *ctx, struct ruleng_json_rules *rule
 		if(NULL == rule) {
 				rc = RULENG_BUS_ERR_ALLOC;
 				RULENG_ERR("Failed to allocate rule");
+				json_object_put(root);
 				return(rc);
 		}
-		struct json_object *tmp;
+		struct json_object *tmp, *if_field, *then_field;
 		json_object_object_get_ex(root, JSON_TIME_FIELD, &tmp);
+
 		rule->time.total_wait = get_json_int_object(tmp, JSON_TOTAL_WAIT_FIELD);
 		rule->time.sleep_time = get_json_int_object(tmp, JSON_SLEEP_FIELD);
 
-		json_object_object_get_ex(root, JSON_IF_FIELD, &rule->event.args);
+		json_object_object_get_ex(root, JSON_IF_FIELD, &if_field);
+		if (!json_object_is_type(if_field, json_type_array)) {
+			RULENG_ERR("Invalid JSON recipe at 'if' key!\n");
+			json_object_put(root);
+			free(rule);
+			continue;
+		}
+
+		rule->event.args = if_field;
+
 		int len = json_object_array_length(rule->event.args);
 		char event_name[256]={'\0'};;
 		for(int i=0; i < len; ++i ) {
@@ -149,10 +173,16 @@ ruleng_process_json(struct ruleng_rules_ctx *ctx, struct ruleng_json_rules *rule
 		}
 		rule->rules_hit = rule->rules_bitmask;
 		rule->event.name = strdup(event_name);
-		json_object_object_get_ex(root, JSON_THEN_FIELD, &rule->action.args);
+		json_object_object_get_ex(root, JSON_THEN_FIELD, &then_field);
+		if (!json_object_is_type(then_field, json_type_array)) {
+			RULENG_ERR("Invalid JSON recipe at 'then' key!\n");
+			json_object_put(root);
+			free(rule);
+			continue;
+		}
+		rule->action.args = then_field;
 
 		LN_LIST_INSERT(rules, rule, node);
-			
 	}
 	uci_unload(ctx->uci_ctx, p);
 

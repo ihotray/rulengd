@@ -7,6 +7,9 @@
 #include <limits.h>
 #include <errno.h>
 
+#include <libubox/uloop.h>
+#include <libubus.h>
+#include <libubox/blobmsg_json.h>
 #include <uci.h>
 
 #include "ruleng_rules.h"
@@ -38,9 +41,9 @@ ruleng_rules_free(struct ruleng_rules *rules)
     struct ruleng_rule *rule = NULL, *tmp = NULL;
     LN_LIST_FOREACH_SAFE(rule, rules, node, tmp) {
         json_object_put(rule->action.args);
-        free(rule->event.name);
+        free((char *) rule->event.name);
         json_object_put(rule->event.args);
-        free(rule->action.object);
+        free((char *) rule->action.object);
         free(rule);
     }
 }
@@ -294,7 +297,7 @@ ruleng_rules_get(struct ruleng_rules_ctx *ctx, struct ruleng_rules *rules,
         continue;
 
     cleanup_event_args:
-        free(rule->event.name);
+        free((char *) rule->event.name);
         json_object_put(rule->event.args);
     cleanup_rule:
 		if(rc == RULENG_RULES_ERR_NOT_VALID) {

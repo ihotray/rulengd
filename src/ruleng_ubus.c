@@ -161,7 +161,9 @@ void ruleng_ubus_call(struct ubus_context *ubus_ctx,
     }
     struct blob_buf buff = {0};
     blob_buf_init(&buff, 0);
-    blobmsg_add_object(&buff, r->action.args);
+
+    if (r->action.args)
+        blobmsg_add_object(&buff, r->action.args);
 
     struct ubus_request *req = calloc(1, sizeof(*req));
     if (NULL == req) {
@@ -187,8 +189,7 @@ ruleng_bus_take_action(struct blob_attr *a, struct blob_attr *b, bool regex)
     return ruleng_bus_blob_check_subset(a, b, regex);
 }
 
-static void
-ruleng_event_cb(struct ubus_context *ubus_ctx,
+void ruleng_event_cb(struct ubus_context *ubus_ctx,
                 struct ubus_event_handler *handler,
                 const char *type,
                 struct blob_attr *msg)
@@ -226,14 +227,15 @@ ruleng_event_cb(struct ubus_context *ubus_ctx,
     return;
 }
 
-static enum ruleng_bus_rc
-ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules)
+int ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules, enum ruleng_bus_rc *rc)
 {
-    enum ruleng_bus_rc rc = RULENG_BUS_OK;
+    int listeners = 0;
+
+    *rc = RULENG_BUS_OK;
 
     LN_LIST_HEAD_INITIALIZE(ctx->rules);
     if (RULENG_RULES_OK != ruleng_rules_get(ctx->com_ctx, &ctx->rules, rules)) {
-        rc = RULENG_BUS_ERR_RULES_GET;
+        *rc = RULENG_BUS_ERR_RULES_GET;
         goto exit;
     }
 
@@ -243,19 +245,20 @@ ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules)
     LN_LIST_FOREACH(r, &ctx->rules, node) {
         if (ubus_register_event_handler(ctx->ubus_ctx, &ctx->handler, r->event.name)) {
             RULENG_ERR("failed to register event handler");
-            rc = RULENG_BUS_ERR_REGISTER_EVENT;
+            *rc = RULENG_BUS_ERR_REGISTER_EVENT;
             goto exit;
         }
+	    listeners++;
     }
 
     LN_LIST_HEAD_INITIALIZE(ctx->json_rules);
-    rc= ruleng_process_json(ctx->com_ctx, &ctx->json_rules, rules);
+    *rc= ruleng_process_json(ctx->com_ctx, &ctx->json_rules, rules);
 	//Register for ubus events here
 	ctx->json_handler.cb = ruleng_event_json_cb;
     struct ruleng_json_rule *jr = NULL;
     LN_LIST_FOREACH(jr, &ctx->json_rules, node) {
 		for(int i = 0; i < B_COUNT(jr->rules_bitmask); ++i) {
-			char *event_name = get_json_string_object(\
+			const char *event_name = get_json_string_object(\
 								json_object_array_get_idx(jr->event.args,i),\
 								JSON_EVENT_FIELD);
 			if(!event_name)
@@ -263,14 +266,15 @@ ruleng_bus_register_events(struct ruleng_bus_ctx *ctx, char *rules)
 			RULENG_INFO("Regiser ubus event[%s]", event_name);
 			if (ubus_register_event_handler(ctx->ubus_ctx, &ctx->json_handler, event_name)) {
 				RULENG_ERR("failed to register event handler");
-				rc = RULENG_BUS_ERR_REGISTER_EVENT;
+				*rc = RULENG_BUS_ERR_REGISTER_EVENT;
 				goto exit;
 			}
+			listeners++;
 		}
 	}
 
 exit:
-    return rc;
+    return listeners;
 }
 
 enum ruleng_bus_rc
@@ -296,7 +300,7 @@ ruleng_bus_init(struct ruleng_bus_ctx **ctx, struct ruleng_rules_ctx *com_ctx,
     _ctx->com_ctx = com_ctx;
     _ctx->ubus_ctx = ubus_ctx;
 
-    rc = ruleng_bus_register_events(_ctx, rules);
+    ruleng_bus_register_events(_ctx, rules, &rc);
     if (RULENG_BUS_OK != rc) {
         goto cleanup_bus_ctx;
     }
