@@ -47,6 +47,12 @@ int increment(struct ubus_context *ctx, struct ubus_object *obj,
 		  struct ubus_request_data *req, const char *method,
 		  struct blob_attr *msg)
 {
+	(void) ctx;
+	(void) obj;
+	(void) req;
+	(void) method;
+	(void) msg;
+
 	counter++;
 
 	return 0;
@@ -56,6 +62,12 @@ int reset(struct ubus_context *ctx, struct ubus_object *obj,
 		  struct ubus_request_data *req, const char *method,
 		  struct blob_attr *msg)
 {
+	(void) ctx;
+	(void) obj;
+	(void) req;
+	(void) method;
+	(void) msg;
+
 	counter = 0;
 
 	return 0;
@@ -65,6 +77,12 @@ int status(struct ubus_context *ctx, struct ubus_object *obj,
 		  struct ubus_request_data *req, const char *method,
 		  struct blob_attr *msg)
 {
+	(void) ctx;
+	(void) obj;
+	(void) req;
+	(void) method;
+	(void) msg;
+
     struct blob_buf b = {0};
 
     blob_buf_init(&b, 0);
@@ -98,7 +116,7 @@ struct ubus_object template_copy_object = {
 	.n_methods = ARRAY_SIZE(template_object_methods),
 };
 
-int main(int argc, char **argv)
+int main()
 {
     int ret;
 	struct ubus_context *ctx;
