@@ -5,6 +5,3 @@ config rule
     option method 'file->write'
     list method_data "{'path': '/tmp/test_file.txt'}"
     list method_data "{'data': 'channel changed!'}"
-
-config rule
-    option recipe "/etc/recipe_1.json"

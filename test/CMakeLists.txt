@@ -2,7 +2,9 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 INCLUDE_DIRECTORIES ("${PROJECT_SOURCE_DIR}/src")
 FILE(COPY data DESTINATION .)
 
-SET(api_tests rulengd_test)
+find_library(JSON_EDITOR_LIBRARIES NAMES json-editor)
+
+SET(api_tests ruleng_test_json ruleng_test_uci)
 FOREACH(test_name IN LISTS api_tests)
     ADD_EXECUTABLE(${test_name} ${test_name}.c)
 	TARGET_LINK_LIBRARIES(
@@ -13,6 +15,7 @@ FOREACH(test_name IN LISTS api_tests)
 		${LIBUCI_LIBRARIES}
 		${LIBUBUS_LIBRARIES}
 		${JSON-C_LIBRARIES}
+		${JSON_EDITOR_LIBRARIES}
 		pthread
 	)
 	ADD_TEST(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)

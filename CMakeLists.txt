@@ -62,5 +62,6 @@ IF(ENABLE_BUILD_TESTS)
 	ENDIF(CMOCKA_FOUND)
 ENDIF(ENABLE_BUILD_TESTS)
 
-install(FILES test/data/ruleng-test-rules DESTINATION /etc/config)
+install(FILES test/data/ruleng-test-uci DESTINATION /etc/config)
+install(FILES test/data/ruleng-test-recipe DESTINATION /etc/config)
 install(FILES test/data/recipe_1.json DESTINATION /etc)
