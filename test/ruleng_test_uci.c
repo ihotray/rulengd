@@ -85,6 +85,8 @@ static void test_rulengd_test_event_uci(void **state)
 
 	ruleng_event_cb(ctx->ubus_ctx, &ctx->handler, "wifi.radio.channel_changed", bb.head);
 
+	sleep(1); /* give the request some time to be processed */
+
 	assert_int_equal(0, access("/tmp/test_file.txt", F_OK));
 }
 
@@ -113,6 +115,8 @@ static void test_rulengd_test_event_uci_fail(void **state)
 	blobmsg_close_array(&bb, array);
 
 	ubus_send_event(ctx->ubus_ctx, "wifi.radio.channel_changed", bb.head);
+
+	sleep(1); /* give the request some time to be processed */
 
 	assert_int_equal(-1, access("/tmp/test_file.txt", F_OK));
 	assert_int_equal(error, 0);
