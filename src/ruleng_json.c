@@ -69,6 +69,7 @@ void ruleng_event_json_cb(struct ubus_context *ubus_ctx, \
     LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		RULENG_INFO("Process event [%s]", r->event.name);
 		char *event_titles = strdup(r->event.name);
+		char *orig = event_titles;
 		char *event = NULL;
 
 		for(int i=0; (event = strsep(&event_titles, JSON_EVENT_SEP)); ++i) {
@@ -110,7 +111,7 @@ void ruleng_event_json_cb(struct ubus_context *ubus_ctx, \
 			RULENG_INFO("All rules matched within time[%s]", r->event.name);
 			ruleng_take_json_action(ubus_ctx, r);
 		}
-		free(event_titles);
+		free(orig);
     }
     return;
 }
