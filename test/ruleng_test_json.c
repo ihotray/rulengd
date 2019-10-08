@@ -161,7 +161,8 @@ static void test_rulengd_invalid_recipes(void **state)
 
 	json_object_set_by_string(&obj, "if", "1", json_type_int);
 	json_object_set_by_string(&obj, "then", "1", json_type_int);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
+
 
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
@@ -169,7 +170,7 @@ static void test_rulengd_invalid_recipes(void **state)
     }
 
 	json_object_set_by_string(&obj, "if", "[1, 2, 3]", json_type_array);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
@@ -178,7 +179,7 @@ static void test_rulengd_invalid_recipes(void **state)
 
 	json_object_del_by_string(obj, "if");
 	json_object_set_by_string(&obj, "if[0].event", "test.sta", json_type_string);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
@@ -186,7 +187,7 @@ static void test_rulengd_invalid_recipes(void **state)
 	}
 
 	json_object_set_by_string(&obj, "if[0].match.placeholder", "1", json_type_int);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
@@ -194,7 +195,7 @@ static void test_rulengd_invalid_recipes(void **state)
 	}
 
 	json_object_set_by_string(&obj, "then.object", "1", json_type_int);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
@@ -204,7 +205,7 @@ static void test_rulengd_invalid_recipes(void **state)
 	json_object_del_by_string(obj, "if");
 	json_object_set_by_string(&obj, "then[0].object", "template", json_type_string);
 	json_object_set_by_string(&obj, "then[0].method", "increment", json_type_string);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
@@ -232,7 +233,7 @@ static void test_rulengd_valid_recipe(void **state)
 	json_object_set_by_string(&obj, "if", "[]", json_type_array);
 	json_object_set_by_string(&obj, "then", "[]", json_type_array);
 	printf("%s %d obj=%s\n", __func__, __LINE__, json_object_get_string(obj));
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	/* allow invalid cfg's as long as if and then keys are of correct type */
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
@@ -257,7 +258,7 @@ static void test_rulengd_register_listener(void **state)
 	/* invalid conf - no listeners */
 	json_object_set_by_string(&obj, "if", "1", json_type_int);
 	json_object_set_by_string(&obj, "then", "1", json_type_int);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 
@@ -268,7 +269,7 @@ static void test_rulengd_register_listener(void **state)
 	json_object_set_by_string(&obj, "if", "[]", json_type_array);
 	json_object_set_by_string(&obj, "then", "[]", json_type_array);
 	printf("%s %d obj=%s\n", __func__, __LINE__, json_object_get_string(obj));
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 
@@ -277,7 +278,7 @@ static void test_rulengd_register_listener(void **state)
 
 	/* valid conf, one event - one listeners */
 	json_object_set_by_string(&obj, "if[-1].event", "test.event", json_type_string);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 
@@ -286,7 +287,7 @@ static void test_rulengd_register_listener(void **state)
 
 	/* valid conf, two events - two listeners */
 	json_object_set_by_string(&obj, "if[-1].event", "test.event2", json_type_string);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 
@@ -311,7 +312,7 @@ static void test_rulengd_trigger_event_fail(void **state)
 	/* valid cfg, no match - should not increment hits */
 	json_object_set_by_string(&obj, "if[-1].event", "test.event", json_type_string);
 	json_object_set_by_string(&obj, "then", "[]", json_type_array);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
@@ -344,7 +345,7 @@ static void test_rulengd_trigger_event(void **state)
 	json_object_set_by_string(&obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&obj, "if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&obj, "then", "[]", json_type_array);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
@@ -378,7 +379,7 @@ static void test_rulengd_trigger_invoke_fail(void **state)
 	json_object_set_by_string(&obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&obj, "if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&obj, "then[0]", "{\"object\": \"template\"}", json_type_object);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	blob_buf_init(&bb, 0);
 	blobmsg_add_u32(&bb, "placeholder", 1);
@@ -393,7 +394,7 @@ static void test_rulengd_trigger_invoke_fail(void **state)
 
 	/* valid cfg, but no object - should increment hits, no segfault! */
 	json_object_set_by_string(&obj, "then[0]", "{\"method\": \"increment\"}", json_type_object);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
@@ -423,7 +424,7 @@ static void test_rulengd_trigger_invoke(void **state)
 	json_object_set_by_string(&obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&obj, "if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&obj, "then[0]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
-	json_object_to_file("/etc/test_recipe1.json", obj);
+	json_object_to_file_ext("/etc/test_recipe1.json", obj, JSON_C_TO_STRING_PRETTY);
 
 	blob_buf_init(&bb, 0);
 	blobmsg_add_u32(&bb, "placeholder", 1);
