@@ -69,8 +69,10 @@ ruleng_bus_blob_compare_primitive(struct blob_attr *a, struct blob_attr *b,
 			reti = regexec(&regex_exp, blobmsg_get_string(b), 0, NULL, 0);
 			if (!reti) {
 				RULENG_INFO("Match");
-			} else if (reti == REG_NOMATCH)
-				goto exit;
+			} else if (reti == REG_NOMATCH) {
+                regfree(&regex_exp);
+                goto exit;
+            }
 			else {
 				regerror(reti, &regex_exp, msgbuf, sizeof(msgbuf));
 				RULENG_ERR("Regex match failed: %s\n", msgbuf);

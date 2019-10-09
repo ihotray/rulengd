@@ -97,6 +97,7 @@ void ruleng_event_json_cb(struct ubus_context *ubus_ctx, \
 					r->time_wasted = 0;
 					r->last_hit_time = 0;
 					r->rules_hit = r->rules_bitmask;
+					blob_buf_free(&eargs);
 					break;
 				}
 				B_UNSET(r->rules_hit, i);
@@ -184,9 +185,13 @@ ruleng_process_json(struct ruleng_rules_ctx *ctx, struct ruleng_json_rules *rule
 		}
 		rule->action.args = then_field;
 
-		LN_LIST_INSERT(rules, rule, node);
-	}
-	uci_unload(ctx->uci_ctx, p);
 
+		LN_LIST_INSERT(rules, rule, node);
+		json_object_get(rule->event.args);
+		json_object_get(rule->action.args);
+		json_object_put(root);
+	}
+
+	uci_unload(ctx->uci_ctx, p);
 	return rc;
 }
