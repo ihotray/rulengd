@@ -49,6 +49,20 @@ struct test_env {
 	int counter;
 };
 
+static void clear_rules_init(struct ruleng_bus_ctx *ctx)
+{
+	struct ruleng_json_rule *r = NULL, *tmp;
+
+	LN_LIST_FOREACH_SAFE(r, &ctx->json_rules, node, tmp) {
+		json_object_put(r->action.args);
+		json_object_put(r->event.args);
+		free(r->event.name);
+		free(r);
+	}
+
+	LN_LIST_HEAD_INITIALIZE(ctx->json_rules);
+}
+
 static void invoke_status_cb(struct ubus_request *req, int type, struct blob_attr *msg)
 {
 	struct test_env *e = (struct test_env *) req->priv;
@@ -65,6 +79,9 @@ static void invoke_status_cb(struct ubus_request *req, int type, struct blob_att
 	assert_non_null(tmp);
 
 	e->counter = json_object_get_int(tmp);
+
+	free(str);
+	json_object_put(obj);
 }
 
 /* invoke a proxied template object */
@@ -116,11 +133,9 @@ static void test_rulengd_invalid_recipes(void **state)
 {
 	struct test_env *e = (struct test_env *) *state;
 	struct ruleng_json_rule *r = NULL;
-	int rc;
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
 
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
-
 	/* no rule should be added, always fail if enter foreach */
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
@@ -129,8 +144,6 @@ static void test_rulengd_invalid_recipes(void **state)
 	json_object_set_by_string(&e->obj, "if", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "then", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
-
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
@@ -138,7 +151,6 @@ static void test_rulengd_invalid_recipes(void **state)
 
 	json_object_set_by_string(&e->obj, "if", "[1, 2, 3]", json_type_array);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
@@ -147,7 +159,6 @@ static void test_rulengd_invalid_recipes(void **state)
 	json_object_del_by_string(e->obj, "if");
 	json_object_set_by_string(&e->obj, "if[0].event", "test.sta", json_type_string);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
@@ -155,7 +166,6 @@ static void test_rulengd_invalid_recipes(void **state)
 
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
@@ -163,7 +173,6 @@ static void test_rulengd_invalid_recipes(void **state)
 
 	json_object_set_by_string(&e->obj, "then.object", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
@@ -183,7 +192,6 @@ static void test_rulengd_valid_recipe(void **state)
 {
 	struct test_env *e = (struct test_env *) *state;
 	struct ruleng_json_rule *r = NULL;
-	int rc;
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
 
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
@@ -195,9 +203,7 @@ static void test_rulengd_valid_recipe(void **state)
 
 	json_object_set_by_string(&e->obj, "if", "[]", json_type_array);
 	json_object_set_by_string(&e->obj, "then", "[]", json_type_array);
-	printf("%s %d obj=%s\n", __func__, __LINE__, json_object_get_string(e->obj));
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
 	/* allow invalid cfg's as long as if and then keys are of correct type */
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
@@ -208,7 +214,6 @@ static void test_rulengd_valid_recipe(void **state)
 static void test_rulengd_register_listener(void **state)
 {
 	struct test_env *e = (struct test_env *) *state;
-	struct ruleng_json_rule *r = NULL;
 	int rv;
 	enum ruleng_bus_rc rc;
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
@@ -217,7 +222,6 @@ static void test_rulengd_register_listener(void **state)
 	json_object_set_by_string(&e->obj, "if", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "then", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 
 	assert_int_equal(0, rc);
@@ -226,9 +230,8 @@ static void test_rulengd_register_listener(void **state)
 	/* valid conf, no event - no listeners */
 	json_object_set_by_string(&e->obj, "if", "[]", json_type_array);
 	json_object_set_by_string(&e->obj, "then", "[]", json_type_array);
-	printf("%s %d obj=%s\n", __func__, __LINE__, json_object_get_string(e->obj));
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
+	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 
 	assert_int_equal(0, rc);
@@ -237,16 +240,15 @@ static void test_rulengd_register_listener(void **state)
 	/* valid conf, one event - one listeners */
 	json_object_set_by_string(&e->obj, "if[-1].event", "test.event", json_type_string);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
+	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
-
 	assert_int_equal(0, rc);
 	assert_int_equal(1, rv);
 
 	/* valid conf, two events - two listeners */
 	json_object_set_by_string(&e->obj, "if[-1].event", "test.event2", json_type_string);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
+	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 
 	assert_int_equal(0, rc);
@@ -266,18 +268,20 @@ static void test_rulengd_trigger_event_fail(void **state)
 	json_object_set_by_string(&e->obj, "if[-1].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "then", "[]", json_type_array);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
 			break;
 		}
 	}
+
 	assert_non_null(r);
 
 	blob_buf_init(&bb, 0);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(0, r->hits);
+	blob_buf_free(&bb);
 }
 
 static void test_rulengd_trigger_event(void **state)
@@ -294,7 +298,6 @@ static void test_rulengd_trigger_event(void **state)
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "then", "[]", json_type_array);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		printf("%s %d: event=%s\n", __func__, __LINE__, r->event.name);
@@ -306,7 +309,9 @@ static void test_rulengd_trigger_event(void **state)
 	blob_buf_init(&bb, 0);
 	blobmsg_add_u32(&bb, "placeholder", 1);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(1, r->hits);
+	blob_buf_free(&bb);
 }
 
 static void test_rulengd_trigger_invoke_fail(void **state)
@@ -318,14 +323,14 @@ static void test_rulengd_trigger_invoke_fail(void **state)
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
 	struct blob_buf bb = {0};
 
+	blob_buf_init(&bb, 0);
+	blobmsg_add_u32(&bb, "placeholder", 1);
+
 	/* valid cfg, but no method - should increment hits, no segfault! */
 	json_object_set_by_string(&e->obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "then[0]", "{\"object\": \"template\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
-	blob_buf_init(&bb, 0);
-	blobmsg_add_u32(&bb, "placeholder", 1);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
@@ -333,12 +338,13 @@ static void test_rulengd_trigger_invoke_fail(void **state)
 		}
 	}
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(1, r->hits);
 
 	/* valid cfg, but no object - should increment hits, no segfault! */
 	json_object_set_by_string(&e->obj, "then[0]", "{\"method\": \"increment\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
+	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
@@ -346,7 +352,10 @@ static void test_rulengd_trigger_invoke_fail(void **state)
 		}
 	}
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(1, r->hits);
+
+	blob_buf_free(&bb);
 }
 
 static void test_rulengd_trigger_invoke(void **state)
@@ -358,14 +367,14 @@ static void test_rulengd_trigger_invoke(void **state)
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
 	struct blob_buf bb = {0};
 
+	blob_buf_init(&bb, 0);
+	blobmsg_add_u32(&bb, "placeholder", 1);
+
 	/* valid cfg, but no args (optional!) - should increment hits, and counter! */
 	json_object_set_by_string(&e->obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "then[0]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
-	blob_buf_init(&bb, 0);
-	blobmsg_add_u32(&bb, "placeholder", 1);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
@@ -373,6 +382,7 @@ static void test_rulengd_trigger_invoke(void **state)
 		}
 	}
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(1, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(1, e->counter);
@@ -380,7 +390,7 @@ static void test_rulengd_trigger_invoke(void **state)
 	/* valid cfg, with args, albeit empty - should increment hits, and counter! */
 	json_object_set_by_string(&e->obj, "then[0]", "{\"object\": \"template\", \"method\": \"increment\", \"args\":{}}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
+	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
@@ -388,6 +398,7 @@ static void test_rulengd_trigger_invoke(void **state)
 		}
 	}
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(1, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(2, e->counter);
@@ -395,7 +406,7 @@ static void test_rulengd_trigger_invoke(void **state)
 	/* valid cfg, with args - should increment hits and write to file! */
 	json_object_set_by_string(&e->obj, "then[0]", "{\"object\": \"file\", \"method\": \"write\", \"args\":{\"path\":\"/tmp/test_file.txt\", \"data\":\"test write\"}}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
+	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
@@ -403,9 +414,12 @@ static void test_rulengd_trigger_invoke(void **state)
 		}
 	}
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(1, r->hits);
 	sleep(1); /* give ubus and rulengd some time to process the request and write to fs */
 	assert_int_equal(0, access("/tmp/test_file.txt", F_OK));
+
+	blob_buf_free(&bb);
 }
 
 static void test_rulengd_trigger_invoke_multi_condition(void **state)
@@ -417,6 +431,9 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
 	struct blob_buf bb = {0};
 
+	blob_buf_init(&bb, 0);
+	blobmsg_add_u32(&bb, "placeholder", 1);
+
 	/* valid cfg with multiple if conditions - no time restrictions*/
 	json_object_set_by_string(&e->obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
@@ -424,33 +441,35 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	json_object_set_by_string(&e->obj, "if[1].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "then[0]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
-	blob_buf_init(&bb, 0);
-	blobmsg_add_u32(&bb, "placeholder", 1);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
 			break;
 		}
 	}
-
 	/* this one will (could fail, extremely unlikely? if time(NULL) ticks between calls?) work becuase wasted_time will be 0 and wait_time is unset (0) */
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(1, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(0, e->counter);
+
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+
 	assert_int_equal(2, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(1, e->counter);
 
 	/* this one wont work becuase wasted_time will be 3 and wait_time is unset (0) */
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(3, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(1, e->counter);
 	sleep(1);
+
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+
 	assert_int_equal(4, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(1, e->counter);
@@ -458,9 +477,8 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	/* valid cfg with multiple if conditions - let events come within 3seconds of eachother*/
 	json_object_set_by_string(&e->obj, "time.event_period", "3", json_type_int);
 	json_object_set_by_string(&e->obj, "time.execution_interval", "1", json_type_int);
-	//json_object_set_by_string(&e->obj, "then[0]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
-	//json_object_set_by_string(&e->obj, "then[1]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
+	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
@@ -469,24 +487,33 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	}
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(1, r->hits);
+
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+
 	assert_int_equal(2, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(2, e->counter);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(3, r->hits);
+
 	sleep(2);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+
 	assert_int_equal(4, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(3, e->counter);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(5, r->hits);
+
 	sleep(4);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+
 	assert_int_equal(6, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(3, e->counter);
@@ -494,6 +521,7 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	json_object_set_by_string(&e->obj, "if[2].event", "test.event.three", json_type_string);
 	json_object_set_by_string(&e->obj, "if[2].match.placeholder", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
+	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
@@ -503,25 +531,33 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
 	assert_int_equal(1, r->hits);
+
 	sleep(1);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
 	assert_int_equal(2, r->hits);
+
 	sleep(1);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.three", bb.head);
+
 	assert_int_equal(3, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(4, e->counter);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
 	assert_int_equal(4, r->hits);
+
 	sleep(2);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
 	assert_int_equal(5, r->hits);
+
 	sleep(2);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.three", bb.head);
+
 	assert_int_equal(6, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(4, e->counter);
+
+	blob_buf_free(&bb);
 }
 
 static void test_rulengd_trigger_invoke_multi_then(void **state)
@@ -533,6 +569,9 @@ static void test_rulengd_trigger_invoke_multi_then(void **state)
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
 	struct blob_buf bb = {0};
 
+	blob_buf_init(&bb, 0);
+	blobmsg_add_u32(&bb, "placeholder", 1);
+
 	/* valid cfg with multiple if conditions - no time restrictions*/
 	json_object_set_by_string(&e->obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
@@ -543,9 +582,6 @@ static void test_rulengd_trigger_invoke_multi_then(void **state)
 	json_object_set_by_string(&e->obj, "time.event_period", "3", json_type_int);
 	json_object_set_by_string(&e->obj, "time.execution_interval", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
-	blob_buf_init(&bb, 0);
-	blobmsg_add_u32(&bb, "placeholder", 1);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
@@ -555,10 +591,13 @@ static void test_rulengd_trigger_invoke_multi_then(void **state)
 
 	/* this one will (could fail, yet extremely unlikely? if time(NULL) ticks between calls?) work becuase wasted_time will be 0 and wait_time is unset (0) */
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(1, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(0, e->counter);
+
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+
 	assert_int_equal(2, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(2, e->counter);
@@ -569,6 +608,7 @@ static void test_rulengd_trigger_invoke_multi_then(void **state)
 
 	assert_int_not_equal(0, access("/tmp/test_file.txt", F_OK));
 
+	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
@@ -578,14 +618,18 @@ static void test_rulengd_trigger_invoke_multi_then(void **state)
 
 	/* this one will (could fail, yet extremely unlikely? if time(NULL) ticks between calls?) work becuase wasted_time will be 0 and wait_time is unset (0) */
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	assert_int_equal(1, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(2, e->counter);
+
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+
 	assert_int_equal(2, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(4, e->counter);
 	assert_int_equal(0, access("/tmp/test_file.txt", F_OK));
+	blob_buf_free(&bb);
 }
 
 static void test_rulengd_execution_interval(void **state)
@@ -597,6 +641,9 @@ static void test_rulengd_execution_interval(void **state)
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
 	struct blob_buf bb = {0};
 
+	blob_buf_init(&bb, 0);
+	blobmsg_add_u32(&bb, "placeholder", 1);
+
 	json_object_set_by_string(&e->obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "if[1].event", "test.event.two", json_type_string);
@@ -606,9 +653,6 @@ static void test_rulengd_execution_interval(void **state)
 	json_object_set_by_string(&e->obj, "time.event_period", "3", json_type_int);
 	json_object_set_by_string(&e->obj, "time.execution_interval", "5", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
-	blob_buf_init(&bb, 0);
-	blobmsg_add_u32(&bb, "placeholder", 1);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
@@ -622,6 +666,7 @@ static void test_rulengd_execution_interval(void **state)
 	after = time(NULL);
 
 	assert_true(before + 5 <= after);
+	blob_buf_free(&bb);
 }
 
 static void test_rulengd_multi_recipe(void **state)
@@ -632,6 +677,9 @@ static void test_rulengd_multi_recipe(void **state)
 	enum ruleng_bus_rc rc;
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
 	struct blob_buf bb = {0};
+
+	blob_buf_init(&bb, 0);
+	blobmsg_add_u32(&bb, "placeholder", 1);
 
 	json_object_set_by_string(&e->obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
@@ -647,53 +695,53 @@ static void test_rulengd_multi_recipe(void **state)
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "if[1].event", "test.event.three", json_type_string);
 	json_object_set_by_string(&e->obj, "if[1].match.placeholder", "1", json_type_int);
-
 	json_object_to_file_ext("/etc/test_recipe2.json", e->obj, JSON_C_TO_STRING_PRETTY);
 
-	blob_buf_init(&bb, 0);
-	blobmsg_add_u32(&bb, "placeholder", 1);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
 			break;
 		}
 	}
-
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
 
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(2, e->counter);
+
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.three", bb.head);
+
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(4, e->counter);
+
+	blob_buf_free(&bb);
 }
 
 static void test_rulengd_regex(void **state)
 {
 	struct test_env *e = (struct test_env *) *state;
 	struct ruleng_json_rule *r = NULL;
-	int rv, before, after;
+	int rv;
 	enum ruleng_bus_rc rc;
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
 	struct blob_buf bb = {0};
+
+	blob_buf_init(&bb, 0);
+	blobmsg_add_string(&bb, "placeholder", "test.asd");
 
 	json_object_set_by_string(&e->obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "^test\\..*", json_type_string);
 	json_object_set_by_string(&e->obj, "if[0].regex", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "then[0]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
-
-	blob_buf_init(&bb, 0);
-	blobmsg_add_string(&bb, "placeholder", "test.asd");
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
 			break;
 		}
 	}
-
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(1, e->counter);
 
@@ -706,6 +754,7 @@ static void test_rulengd_regex(void **state)
 
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(1, e->counter);
+	blob_buf_free(&bb);
 }
 
 static int setup(void** state) {
@@ -722,8 +771,9 @@ static int setup(void** state) {
 }
 
 static int teardown(void** state) {
-	(void) state;
 	struct test_env *e = (struct test_env *) *state;
+
+	clear_rules_init(e->r_ctx);
 
 	json_object_put(e->obj);
 
@@ -765,17 +815,17 @@ int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test_setup_teardown(test_rulengd_invalid_recipes, setup, teardown),
-		/*cmocka_unit_test_setup_teardown(test_rulengd_valid_recipe, setup, teardown),
+		cmocka_unit_test_setup_teardown(test_rulengd_valid_recipe, setup, teardown),
 		cmocka_unit_test_setup_teardown(test_rulengd_register_listener, setup, teardown),
 		cmocka_unit_test_setup_teardown(test_rulengd_trigger_event_fail, setup, teardown),
 		cmocka_unit_test_setup_teardown(test_rulengd_trigger_event, setup, teardown),
 		cmocka_unit_test_setup_teardown(test_rulengd_trigger_invoke_fail, setup, teardown),
-		cmocka_unit_test_setup_teardown(test_rulengd_trigger_invoke, setup, teardown),
+		cmocka_unit_test_setup_teardown(test_rulengd_trigger_invoke, setup, teardown), // issue on ruleng_ubus_call if tested individually due to async
 		cmocka_unit_test_setup_teardown(test_rulengd_trigger_invoke_multi_condition, setup, teardown),
-		cmocka_unit_test_setup_teardown(test_rulengd_trigger_invoke_multi_then, setup, teardown),
-		cmocka_unit_test_setup_teardown(test_rulengd_execution_interval, setup, teardown),
+		cmocka_unit_test_setup_teardown(test_rulengd_trigger_invoke_multi_then, setup, teardown), // issue on ruleng_ubus_call if tested individually due to async
+		cmocka_unit_test_setup_teardown(test_rulengd_execution_interval, setup, teardown), // issue on ruleng_ubus_call if tested individually due to async
 		cmocka_unit_test_setup_teardown(test_rulengd_multi_recipe, setup, teardown),
-		cmocka_unit_test_setup_teardown(test_rulengd_regex, setup, teardown),*/
+		cmocka_unit_test_setup_teardown(test_rulengd_regex, setup, teardown),
 	};
 
 	return cmocka_run_group_tests(tests, group_setup, group_teardown);
