@@ -177,6 +177,7 @@ ruleng_process_json(struct ruleng_rules_ctx *ctx, struct ruleng_json_rules *rule
 		json_object_object_get_ex(root, JSON_THEN_FIELD, &then_field);
 		if (!json_object_is_type(then_field, json_type_array)) {
 			RULENG_ERR("Invalid JSON recipe at 'then' key!\n");
+			free(rule->event.name);
 			json_object_put(root);
 			free(rule);
 			continue;
