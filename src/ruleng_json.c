@@ -34,15 +34,19 @@ static void ruleng_take_json_action(struct ubus_context *u_ctx, struct ruleng_js
 		struct ruleng_rule *rr = malloc(sizeof(struct ruleng_rule));
 		json_object_object_get_ex(temp, JSON_ARGS_FIELD, &rr->action.args);
 		rr->action.object = get_json_string_object(temp, JSON_OBJECT_FIELD);
-		if (!rr->action.object)
+		if (!rr->action.object) {
+			free(rr);
 			continue;
+		}
 
 		rr->action.name = get_json_string_object(temp, JSON_METHOD_FIELD);
-		if (!rr->action.name)
+		if (!rr->action.name) {
+			free(rr);
 			continue;
+		}
 
 		RULENG_INFO("calling[%s->%s]", rr->action.object, rr->action.name);
-    	ruleng_ubus_call(u_ctx, rr);
+		ruleng_ubus_call(u_ctx, rr);
 		if(i < len-1) {
 			RULENG_INFO("sleeping for [%d]", r->time.sleep_time);
 			sleep(r->time.sleep_time);
