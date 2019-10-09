@@ -95,6 +95,7 @@ ruleng_rules_rules_parse_object_method(struct uci_context *ctx,
     }
 
     char *temp = strdup(om);
+    char *orig_tmp = temp;
     if (NULL == temp) {
         RULENG_ERR("%s: failed to allocate object method", s->type);
         rc = RULENG_RULES_ERR_ALLOC;
@@ -114,12 +115,13 @@ ruleng_rules_rules_parse_object_method(struct uci_context *ctx,
         goto cleanup_temp;
     }
 
-    *method = temp + 1;
+    *object = strdup(*object);
+    *method = strdup(temp + 1);
 
-    goto exit;
+//    goto exit;
 
 cleanup_temp:
-    free(temp);
+    free(orig_tmp);
 exit:
     return rc;
 }
