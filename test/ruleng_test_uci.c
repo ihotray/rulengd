@@ -43,67 +43,73 @@
 
 struct test_env {
 	struct ubus_context *ctx;
+	struct ruleng_bus_ctx *r_ctx;
+	struct json_object *obj;
 	uint32_t template_id;
 	int counter;
 };
 
+
+static void clear_rules_init(struct ruleng_bus_ctx *ctx)
+{
+	struct ruleng_rule *r = NULL, *tmp;
+
+	LN_LIST_FOREACH_SAFE(r, &ctx->rules, node, tmp) {
+		json_object_put((void *) r->action.args);
+		json_object_put((void *) r->event.args);
+		free((void *) r->event.name);
+		free((void *) r->action.name);
+		free((void *) r->action.object);
+		free(r);
+	}
+
+	LN_LIST_HEAD_INITIALIZE(ctx->rules);
+}
+
 static void test_rulengd_non_existing_ubus_socket(void **state)
 {
 	(void) state; /* unused */
-
 	struct ruleng_bus_ctx *ctx;
 	struct ruleng_rules_ctx *com_ctx = calloc(1, sizeof(*com_ctx));
-	int error = ruleng_bus_init(&ctx, com_ctx, "ruleng-test-uci", "invalid_ubus.sock");
+	int error;
 
+	error = ruleng_bus_init(&ctx, com_ctx, "ruleng-test-uci", "invalid_ubus.sock");
+
+	free(com_ctx);
 	assert_int_equal(error, 2);
 }
 
 static void test_rulengd_test_event_uci(void **state)
 {
-	(void) state; /* unused */
-
-	struct ruleng_bus_ctx *ctx;
-	struct ruleng_rules_ctx *com_ctx = calloc(1, sizeof(*com_ctx));
+	struct test_env *e = (struct test_env *) *state;
+	struct ruleng_bus_ctx *ctx = e->r_ctx;
 	struct blob_buf bb = {0};
 	void *array;
-
-	ruleng_rules_ctx_init(&com_ctx);
-
-	int error = ruleng_bus_init(&ctx, com_ctx, "ruleng-test-uci", "/var/run/ubus.sock");
-	assert_int_equal(error, 0);
 
 	blob_buf_init(&bb, 0);
 	blobmsg_add_u32(&bb, "radio", 0);
 	blobmsg_add_u32(&bb, "reason", 1);
 	array = blobmsg_open_array(&bb, "channels");
-	blobmsg_add_u32(&bb, "", 1);
+	blobmsg_add_u32(&bb , "", 1);
 	blobmsg_add_u32(&bb, "", 2);
 	blobmsg_add_u32(&bb, "", 3);
 	blobmsg_close_array(&bb, array);
-
-	//ubus_send_event(ctx->ubus_ctx, "wifi.radio.channel_changed", bb.head);
 
 	ruleng_event_cb(ctx->ubus_ctx, &ctx->handler, "wifi.radio.channel_changed", bb.head);
 
 	sleep(1); /* give the request some time to be processed */
 
 	assert_int_equal(0, access("/tmp/test_file.txt", F_OK));
+	blob_buf_free(&bb);
 }
 
 static void test_rulengd_test_event_uci_fail(void **state)
 {
-	(void) state; /* unused */
+	struct test_env *e = (struct test_env *) *state;
 
-	struct ruleng_bus_ctx *ctx;
-	struct ruleng_rules_ctx *com_ctx = calloc(1, sizeof(*com_ctx));
-
-	ruleng_rules_ctx_init(&com_ctx);
-
-	int error = ruleng_bus_init(&ctx, com_ctx, "ruleng-test-uci", "/var/run/ubus.sock");
-
+	struct ruleng_bus_ctx *ctx = e->r_ctx;
 	struct blob_buf bb = {0};
 	void *array;
-
 
 	blob_buf_init(&bb, 0);
 	blobmsg_add_u32(&bb, "radio", 1);
@@ -114,30 +120,12 @@ static void test_rulengd_test_event_uci_fail(void **state)
 	blobmsg_add_u32(&bb, "", 3);
 	blobmsg_close_array(&bb, array);
 
-	ubus_send_event(ctx->ubus_ctx, "wifi.radio.channel_changed", bb.head);
+	ruleng_event_cb(ctx->ubus_ctx, &ctx->handler, "wifi.radio.channel_changed", bb.head);
 
 	sleep(1); /* give the request some time to be processed */
 
 	assert_int_equal(-1, access("/tmp/test_file.txt", F_OK));
-	assert_int_equal(error, 0);
-}
-
-static void invoke_status_cb(struct ubus_request *req, int type, struct blob_attr *msg)
-{
-	struct test_env *e = (struct test_env *) req->priv;
-	struct json_object *obj, *tmp;
-	char *str;
-
-	str = blobmsg_format_json(msg, true);
-	assert_non_null(str);
-
-	obj = json_tokener_parse(str);
-	assert_non_null(obj);
-
-	json_object_object_get_ex(obj, "counter", &tmp);
-	assert_non_null(tmp);
-
-	e->counter = json_object_get_int(tmp);
+	blob_buf_free(&bb);
 }
 
 /* invoke a proxied template object */
@@ -160,7 +148,7 @@ static void invoke_template(void **state, char *method, void *cb, void *priv)
 
 static int setup_bus_ctx(struct ruleng_bus_ctx **ctx)
 {
-	struct ruleng_rules_ctx *com_ctx = calloc(1, sizeof(struct ruleng_rules_ctx));
+	struct ruleng_rules_ctx *com_ctx;
 
 	remove("/etc/test_recipe.json");
 
@@ -181,7 +169,11 @@ static int setup_bus_ctx(struct ruleng_bus_ctx **ctx)
     _ctx->com_ctx = com_ctx;
     _ctx->ubus_ctx = ubus_ctx;
 
-	LN_LIST_HEAD_INITIALIZE(_ctx->json_rules);
+    LN_LIST_HEAD_INITIALIZE(_ctx->rules);
+    if (RULENG_RULES_OK != ruleng_rules_get(_ctx->com_ctx, &_ctx->rules, "ruleng-test-uci")) {
+        return -1;
+    }
+
 	return 0;
 }
 
@@ -196,24 +188,28 @@ static int setup(void** state) {
 }
 
 static int teardown(void** state) {
-	(void) state;
+	struct test_env *e = (struct test_env *) *state;
+
+	clear_rules_init(e->r_ctx);
 
 	return 0;
 }
 
 static int group_setup(void** state) {
+	int rv;
 	struct test_env *e = calloc(1, sizeof(struct test_env));
 
 	if (!e)
 		return 1;
 
-	e->ctx = ubus_connect(NULL);
-	if (!e->ctx)
-		return 1;
+	rv = setup_bus_ctx(&e->r_ctx);
+	if (rv < 0)
+		return -1;
+
+	e->ctx = e->r_ctx->ubus_ctx;
 
 	ubus_add_uloop(e->ctx);
 	ubus_lookup_id(e->ctx, "template", &e->template_id);
-
 
 	*state = e;
 	return 0;
@@ -222,11 +218,14 @@ static int group_setup(void** state) {
 static int group_teardown(void** state) {
 	struct test_env *e = (struct test_env *) *state;
 
-	uloop_done();
+    ruleng_rules_ctx_free(e->r_ctx->com_ctx);
 	ubus_free(e->ctx);
+
+    free(e->r_ctx);
 	free(e);
 	return 0;
 }
+
 
 int main(void)
 {
