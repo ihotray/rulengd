@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 
-project(rulengd C)
+project(rulengd)
 
 add_definitions(
   -Wall
@@ -41,17 +41,17 @@ target_link_libraries(rulengd ${RULENGD_LINK})
 #testing
 IF(CMAKE_BUILD_TYPE STREQUAL Debug)
 	OPTION(ENABLE_BUILD_TESTS "Build tests" ON)
-	#OPTION(ENABLE_VALGRIND_TESTS "Build tests with valgrind" ON)
+	OPTION(ENABLE_VALGRIND_TESTS "Build tests with valgrind" ON)
 ELSE()
 	OPTION(ENABLE_BUILD_TESTS "Build tests" OFF)
-	#OPTION(ENABLE_VALGRIND_TESTS "Build tests with valgrind" OFF)
+	OPTION(ENABLE_VALGRIND_TESTS "Build tests with valgrind" OFF)
 ENDIF()
 
 IF(ENABLE_BUILD_TESTS)
 	FIND_PACKAGE(CMocka)
 	if(CMOCKA_FOUND)
-		#INCLUDE(CodeCoverage)
-		#APPEND_COVERAGE_COMPILER_FLAGS()
+		INCLUDE(CodeCoverage)
+		APPEND_COVERAGE_COMPILER_FLAGS()
 		ADD_LIBRARY(${PROJECT_NAME}-api SHARED ${SOURCES})
 		MESSAGE("-- Building tests")
 		ENABLE_TESTING()
