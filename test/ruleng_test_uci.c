@@ -52,17 +52,7 @@ struct test_env {
 
 static void clear_rules_init(struct ruleng_bus_ctx *ctx)
 {
-	struct ruleng_rule *r = NULL, *tmp;
-
-	LN_LIST_FOREACH_SAFE(r, &ctx->rules, node, tmp) {
-		json_object_put((void *) r->action.args);
-		json_object_put((void *) r->event.args);
-		free((void *) r->event.name);
-		free((void *) r->action.name);
-		free((void *) r->action.object);
-		free(r);
-	}
-
+	ruleng_rules_free(&ctx->rules);
 	LN_LIST_HEAD_INITIALIZE(ctx->rules);
 }
 
