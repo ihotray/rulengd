@@ -41,9 +41,10 @@ ruleng_rules_free(struct ruleng_rules *rules)
     struct ruleng_rule *rule = NULL, *tmp = NULL;
     LN_LIST_FOREACH_SAFE(rule, rules, node, tmp) {
         json_object_put(rule->action.args);
-        free((char *) rule->event.name);
         json_object_put(rule->event.args);
-        free((char *) rule->action.object);
+        free((void *) rule->event.name);
+		free((void *) rule->action.name);
+		free((void *) rule->action.object);
         free(rule);
     }
 }
