@@ -56,19 +56,6 @@ static void clear_rules_init(struct ruleng_bus_ctx *ctx)
 	LN_LIST_HEAD_INITIALIZE(ctx->rules);
 }
 
-static void test_rulengd_non_existing_ubus_socket(void **state)
-{
-	(void) state; /* unused */
-	struct ruleng_bus_ctx *ctx;
-	struct ruleng_rules_ctx *com_ctx = calloc(1, sizeof(*com_ctx));
-	int error;
-
-	error = ruleng_bus_init(&ctx, com_ctx, "ruleng-test-uci", "invalid_ubus.sock");
-
-	free(com_ctx);
-	assert_int_equal(error, 2);
-}
-
 static void test_rulengd_test_event_uci(void **state)
 {
 	struct test_env *e = (struct test_env *) *state;
@@ -216,11 +203,9 @@ static int group_teardown(void** state) {
 	return 0;
 }
 
-
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(test_rulengd_non_existing_ubus_socket),
 		cmocka_unit_test_setup_teardown(test_rulengd_test_event_uci, setup, teardown),
 		cmocka_unit_test_setup_teardown(test_rulengd_test_event_uci_fail, setup, teardown),
 	};

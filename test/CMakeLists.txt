@@ -4,8 +4,10 @@ FILE(COPY data DESTINATION .)
 
 find_library(JSON_EDITOR_LIBRARIES NAMES json-editor)
 
-SET(api_tests ruleng_test_json ruleng_test_uci)
-FOREACH(test_name IN LISTS api_tests)
+SET(unit_tests unit_tests_json unit_tests_uci)
+SET(functional_tests functional_tests_json functional_tests_uci)
+SET(all_tests ${unit_tests} ${functional_tests})
+FOREACH(test_name IN LISTS all_tests)
     ADD_EXECUTABLE(${test_name} ${test_name}.c)
 	TARGET_LINK_LIBRARIES(
 		${test_name}
@@ -18,27 +20,41 @@ FOREACH(test_name IN LISTS api_tests)
 		${JSON_EDITOR_LIBRARIES}
 		pthread
 	)
-	ADD_TEST(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)
+	#ADD_TEST(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)
 ENDFOREACH(test_name)
 
-IF(ENABLE_VALGRIND_TESTS)
-	FIND_PROGRAM(valgrind_FOUND valgrind)
-	IF(valgrind_FOUND)
-		FOREACH(test_name IN LISTS api_tests)
-			ADD_TEST(${test_name}_valgrind valgrind --leak-check=full
-				--show-reachable=yes --show-leak-kinds=all
-				--errors-for-leak-kinds=all --error-exitcode=1
-				 ${CMAKE_BINARY_DIR}/test/${test_name})
-		ENDFOREACH(test_name)
-	ELSE(valgrind_FOUND)
-		MESSAGE("-- Valgrind executable not found! Disabling memory leaks tests")
-	ENDIF(valgrind_FOUND)
-ENDIF(ENABLE_VALGRIND_TESTS)
+#IF(ENABLE_VALGRIND_TESTS)
+#	FIND_PROGRAM(valgrind_FOUND valgrind)
+#	IF(valgrind_FOUND)
+#		FOREACH(test_name IN LISTS all_tests)
+#			ADD_TEST(${test_name}_valgrind valgrind --leak-check=full
+#				--show-reachable=yes --show-leak-kinds=all
+#				--errors-for-leak-kinds=all --error-exitcode=1
+#				 ${CMAKE_BINARY_DIR}/test/${test_name})
+#		ENDFOREACH(test_name)
+#	ELSE(valgrind_FOUND)
+#		MESSAGE("-- Valgrind executable not found! Disabling memory leaks tests")
+#	ENDIF(valgrind_FOUND)
+#ENDIF(ENABLE_VALGRIND_TESTS)
 
-#SET(COVERAGE_EXCLUDES 'src/main.c' '/usr/include/*')
-#
-#SETUP_TARGET_FOR_COVERAGE(
-#    NAME test_coverage
-#	EXECUTABLE ctest
-#	DEPENDENCIES rulengd-api
-#)
+SET(COVERAGE_EXCLUDES 'src/main.c' '/usr/include/*')
+
+ADD_CUSTOM_TARGET(functional-test)
+FOREACH(test_name IN LISTS functional_tests)
+	ADD_CUSTOM_COMMAND(TARGET functional-test
+		COMMAND valgrind --leak-check=full --show-reachable=no --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=1 --track-origins=yes ./${test_name}
+	)
+ENDFOREACH(test_name)
+
+ADD_CUSTOM_TARGET(unit-test)
+FOREACH(test_name IN LISTS unit_tests)
+	ADD_CUSTOM_COMMAND(TARGET unit-test
+		COMMAND valgrind --leak-check=full --show-reachable=no --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=1 --track-origins=yes ./${test_name}
+	)
+ENDFOREACH(test_name)
+
+SETUP_TARGET_FOR_COVERAGE(
+    NAME test_coverage
+	EXECUTABLE ctest
+	DEPENDENCIES rulengd-api
+)
