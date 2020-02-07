@@ -5,7 +5,7 @@ FILE(COPY data DESTINATION .)
 find_library(JSON_EDITOR_LIBRARIES NAMES json-editor)
 
 SET(unit_tests unit_tests_json unit_tests_uci)
-SET(functional_tests functional_tests_json functional_tests_uci)
+SET(functional_tests functional_tests_json functional_tests_uci functional_tests_generic)
 SET(all_tests ${unit_tests} ${functional_tests})
 FOREACH(test_name IN LISTS all_tests)
     ADD_EXECUTABLE(${test_name} ${test_name}.c)
