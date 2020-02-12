@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 INCLUDE_DIRECTORIES ("${PROJECT_SOURCE_DIR}/src")
-FILE(COPY data DESTINATION .)
+FILE(COPY files/ DESTINATION .)
 
 find_library(JSON_EDITOR_LIBRARIES NAMES json-editor)
 
@@ -28,7 +28,7 @@ FOREACH(test_name IN LISTS functional_tests)
 	ADD_CUSTOM_COMMAND(TARGET functional-test
 		COMMAND valgrind --leak-check=full --show-reachable=no --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=1 --track-origins=yes ./${test_name}
 	)
-	ADD_TEST(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}> LABEL functional)
+	ADD_TEST(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)
 	SET_TESTS_PROPERTIES(${test_name} PROPERTIES LABELS "functional")
 ENDFOREACH(test_name)
 
@@ -37,7 +37,7 @@ FOREACH(test_name IN LISTS unit_tests)
 	ADD_CUSTOM_COMMAND(TARGET unit-test
 		COMMAND valgrind --leak-check=full --show-reachable=no --show-leak-kinds=all --errors-for-leak-kinds=all --error-exitcode=1 --track-origins=yes ./${test_name}
 	)
-	ADD_TEST(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}> LABEL unit)
+	ADD_TEST(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)
 	SET_TESTS_PROPERTIES(${test_name} PROPERTIES LABELS "unit")
 ENDFOREACH(test_name)
 
