@@ -710,8 +710,6 @@ static int group_setup(void** state) {
 
 	*state = e;
 
-	printf("*state = %p, e = %p\n", *state, e);
-
 	return 0;
 }
 

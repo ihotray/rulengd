@@ -103,10 +103,11 @@ It means if you receive ```wifi.sta``` and ```client``` events with the matching
 
 ## Building
 
+```
 mkdir build && cd build
 cmake ..
 make
-
+```
 ### Example
 
 After building, do ```sudo make install```'. This will copy
@@ -122,32 +123,14 @@ This should write 'test event received!' to the ```/tmp/test_event.txt```.
 
 Rule engine has unit tests prepared through Cmocka, testing a variety of configuration and json recipe setups.
 
-It is recommended these are run through the prepared Docker image, containing ubus, rpcd and various other dependencies needed to compile and run the tests.
+It is recommended these are run through the IOPSYS docker hub image, containing
+ubus, rpcd and various other dependencies needed to compile and run the tests.
 
-First build the image.
-
-```
-docker build -t iopsys/rulengd .
-```
-
-Then run the image to start it in the background. It is important this is done from the root directory of the repository to provide the correct /opt/work directory to the image.
-```
-docker run -d --name rulengd --privileged --rm -v ${PWD}:/opt/work -p 2222:22 -e LOCAL_USER_ID=`id -u $USER` iopsys/rulengd:latest
-```
-
-To gain terminal access to the image run:
+To start the container run the command:
 
 ```
-docker exec --user=user -it rulengd bash
-
+docker run -it --rm -v ${PWD}/schemas:/usr/share/rpcd/schemas -v ${PWD}:/builds/iopsys/rulengd iopsys/code-analysis:0.7
 ```
-
-When you are finished using the docker image, stop the image through:
-
-```
-docker stop rulengd
-```
-
 
 To run tests the build has to be prepared with the ```Debug``` build type.
 
@@ -158,28 +141,205 @@ make
 sudo make install
 ```
 
+The tests support two targets, `make unit-test` and `make functional-test`.
+The unit tests can be run in a sterile environment, while the functional tests
+have some dependencies to other daemons such as `ubusd` and `template`. To start
+these dependencies run the following commands from the build directory:
+
+```
+$ ubusd &
+[1] 173
+$ ./test/cmocka/template_obj/template &
+[2] 174
+$ connected as c1839b44
+$ rpcd &
+[3] 463
+```
+
 With a debug build prepared, before the cmocka test suite can be run, start the template daemon used from the tests.
 
 ```
-sudo template &
+$ sudo make functional-test
+root@4547a81ee0ec:/builds/iopsys/rulengd/build# make functional-test
+==477== Memcheck, a memory error detector
+==477== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==477== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==477== Command: ./functional_tests_json
+==477== 
+[==========] Running 10 test(s).
+[ RUN      ] test_rulengd_register_listener
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+...
+INFO: ruleng_bus_register_events(): "Regiser ubus event[test.event2]"
+[       OK ] test_rulengd_register_listener
+[ RUN      ] test_rulengd_trigger_event_fail
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+...
+INFO: ruleng_event_json_cb(): "Process event [test.event+]"
+[       OK ] test_rulengd_trigger_event_fail
+[ RUN      ] test_rulengd_trigger_event
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+...
+INFO: ruleng_event_json_cb(): "All rules matched within time[test.event+]"
+[       OK ] test_rulengd_trigger_event
+[ RUN      ] test_rulengd_trigger_invoke_fail
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+...
+[       OK ] test_rulengd_trigger_invoke_fail
+[ RUN      ] test_rulengd_trigger_invoke
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+...
+INFO: ruleng_take_json_action(): "calling[file->write]"
+[       OK ] test_rulengd_trigger_invoke
+[ RUN      ] test_rulengd_trigger_invoke_multi_condition
+INFO: ruleng_ubus_complete_cb(): "ubus call completed, ret = 0"
+...
+INFO: ruleng_event_json_cb(): "Process event [test.event+test.event.two+test.event.three+]"
+[       OK ] test_rulengd_trigger_invoke_multi_condition
+[ RUN      ] test_rulengd_trigger_invoke_multi_then
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+...
+INFO: ruleng_ubus_complete_cb(): "ubus call completed, ret = 0"
+[       OK ] test_rulengd_trigger_invoke_multi_then
+[ RUN      ] test_rulengd_execution_interval
+INFO: ruleng_ubus_complete_cb(): "ubus call completed, ret = 0"
+...
+INFO: ruleng_ubus_complete_cb(): "ubus call completed, ret = 0"
+[       OK ] test_rulengd_execution_interval
+[ RUN      ] test_rulengd_multi_recipe
+INFO: ruleng_ubus_complete_cb(): "ubus call completed, ret = 0"
+...
+INFO: ruleng_ubus_complete_cb(): "ubus call completed, ret = 0"
+[       OK ] test_rulengd_multi_recipe
+[ RUN      ] test_rulengd_regex
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+...
+INFO: ruleng_event_json_cb(): "Process event [test.event+]"
+[       OK ] test_rulengd_regex
+[==========] 10 test(s) run.
+[  PASSED  ] 10 test(s).
+==477== 
+==477== HEAP SUMMARY:
+==477==     in use at exit: 0 bytes in 0 blocks
+==477==   total heap usage: 3,356 allocs, 3,356 frees, 657,471 bytes allocated
+==477== 
+==477== All heap blocks were freed -- no leaks are possible
+==477== 
+==477== For counts of detected and suppressed errors, rerun with: -v
+==477== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+==479== Memcheck, a memory error detector
+==479== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==479== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==479== Command: ./functional_tests_uci
+==479== 
+[==========] Running 2 test(s).
+INFO: ruleng_rules_rules_parse_event(): "wifi.radio.channel_changed event data: { "radio": 0, "reason": 1, "channels": [ 1, 2, 3 ] }"
+...
+INFO: ruleng_event_cb(): "{ \"wifi.radio.channel_changed\": {"radio":1,"reason":1,"channels":[1,2,3]} }\n"
+[       OK ] test_rulengd_test_event_uci_fail
+[==========] 2 test(s) run.
+[  PASSED  ] 2 test(s).
+==479== 
+==479== HEAP SUMMARY:
+==479==     in use at exit: 0 bytes in 0 blocks
+==479==   total heap usage: 384 allocs, 384 frees, 122,438 bytes allocated
+==479== 
+==479== All heap blocks were freed -- no leaks are possible
+==479== 
+==479== For counts of detected and suppressed errors, rerun with: -v
+==479== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+==481== Memcheck, a memory error detector
+==481== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==481== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==481== Command: ./functional_tests_generic
+==481== 
+[==========] Running 1 test(s).
+[ RUN      ] test_rulengd_test_init
+INFO: ruleng_rules_rules_parse_event(): "wifi.radio.channel_changed event data: { "radio": 0, "reason": 1, "channels": [ 1, 2, 3 ] }"
+...
+ERROR: ruleng_rules_get(): "asdasd: uci lookup failed"
+[       OK ] test_rulengd_test_init
+[==========] 1 test(s) run.
+[  PASSED  ] 1 test(s).
+==481== 
+==481== HEAP SUMMARY:
+==481==     in use at exit: 0 bytes in 0 blocks
+==481==   total heap usage: 460 allocs, 460 frees, 194,839 bytes allocated
+==481== 
+==481== All heap blocks were freed -- no leaks are possible
+==481== 
+==481== For counts of detected and suppressed errors, rerun with: -v
+==481== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+Built target functional-test
 ```
 
-To run the test suite run ```sudo make test```.
+Alternatively, the scripts prepared for the IOPSYS CI/CD pipeline can be used,
+from the root directory:
 
 ```
-user@a3beae748566:/opt/work/build$ sudo make test
-Running tests...
-Test project /opt/work/build
-    Start 1: ruleng_test_json
-1/4 Test #1: ruleng_test_json .................   Passed   22.06 sec
-    Start 2: ruleng_test_uci
-2/4 Test #2: ruleng_test_uci ..................   Passed    2.01 sec
-    Start 3: ruleng_test_json_valgrind
-3/4 Test #3: ruleng_test_json_valgrind ........   Passed   22.91 sec
-    Start 4: ruleng_test_uci_valgrind
-4/4 Test #4: ruleng_test_uci_valgrind .........   Passed    2.59 sec
-
-100% tests passed, 0 tests failed out of 4
-
-Total Test time (real) =  49.59 sec
+$ ./gitlab-ci/setup.sh 
+preparation script
+/builds/iopsys/rulengd
+mkdir: cannot create directory 'build': File exists
+/builds/iopsys/rulengd/build /builds/iopsys/rulengd
+-- Found libuci: /usr/lib/libuci.so
+-- Found libubus: /usr/lib/libubus.so
+-- Found libjson-c: /usr/local/lib/libjson-c.so
+-- Appending code coverage compiler flags: -g -O0 --coverage -fprofile-arcs -ftest-coverage
+-- Building tests
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /builds/iopsys/rulengd/build
+[ 25%] Built target rulengd
+[ 50%] Built target rulengd-api
+[ 58%] Built target functional_tests_generic
+[ 66%] Built target functional_tests_uci
+[ 75%] Built target functional_tests_json
+[ 83%] Built target unit_tests_uci
+[ 91%] Built target unit_tests_json
+[100%] Built target template
+[ 25%] Built target rulengd
+[ 50%] Built target rulengd-api
+[ 58%] Built target functional_tests_generic
+[ 66%] Built target functional_tests_uci
+[ 75%] Built target functional_tests_json
+[ 83%] Built target unit_tests_uci
+[ 91%] Built target unit_tests_json
+[100%] Built target template
+Install the project...
+-- Install configuration: "Debug"
+-- Installing: /etc/config/ruleng-test-uci
+-- Installing: /etc/config/ruleng-test-recipe
+-- Installing: /etc/recipe_1.json
+-- Installing: /usr/local/bin/template
+-- Set runtime path of "/usr/local/bin/template" to ""
+/builds/iopsys/rulengd
+$ ./gitlab-ci/functional-test.sh 
+preparation script
+/builds/iopsys/rulengd
+rpcd: added process group
+template: added process group
+ubusd: added process group
+rpcd                             RUNNING   pid 298, uptime 0:00:03
+template                         RUNNING   pid 299, uptime 0:00:03
+ubusd                            RUNNING   pid 296, uptime 0:00:04
+make: Entering directory '/builds/iopsys/rulengd/build'
+make[1]: Entering directory '/builds/iopsys/rulengd/build'
+make[2]: Entering directory '/builds/iopsys/rulengd/build'
+make[3]: Entering directory '/builds/iopsys/rulengd/build'
+make[3]: Leaving directory '/builds/iopsys/rulengd/build'
+make[3]: Entering directory '/builds/iopsys/rulengd/build'
+==312== Memcheck, a memory error detector
+==312== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==312== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==312== Command: ./functional_tests_json
+==312== 
+[==========] Running 10 test(s).
+[ RUN      ] test_rulengd_register_listener
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+ERROR: ruleng_process_json(): "Invalid JSON recipe at 'if' key!\n"
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+ERROR: ruleng_rules_rules_parse_event_name(): "rule: failed to find event name"
+...
 ```
