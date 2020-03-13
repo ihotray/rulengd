@@ -5,7 +5,7 @@ configuring rules where options are ubus events with list of data and ubus
 methods with list of arguments.
 
 ## Overview
-Rulengd registers to all ubus events on the system and keeps track of each
+Rulengd registers to ubus events on the system and keeps track of each
 configured rule. When an event of interest is received, it compares it with the
 configured rule and if the expected data of the event matches with the data of
 the event received, it invokes the configured ubus method with the given
@@ -77,6 +77,10 @@ after each other, it will invoke
 `ubus call smtp.client send '{"email":"email@domain.com, "data":"Alice is home",}'`
 and `ubus call wifi.ap.wlan0 dissassociate '{"macaddr": "00:e0:4c:68:05:9a"}'`,
 one second after eachother.
+
+Note: The order of the objects in the `if` and `then` arrays are important, the
+events are expected to come in that order and the execution will be performed
+as such.
 
 ```
 {
