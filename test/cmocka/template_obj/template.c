@@ -109,13 +109,6 @@ struct ubus_object template_object = {
 	.n_methods = ARRAY_SIZE(template_object_methods),
 };
 
-struct ubus_object template_copy_object = {
-	.name = "template_copy",
-	.type = &template_object_type,
-	.methods = template_object_methods,
-	.n_methods = ARRAY_SIZE(template_object_methods),
-};
-
 int main()
 {
     int ret;
@@ -132,10 +125,6 @@ int main()
 	ret = ubus_add_object(ctx, &template_object);
     if (ret != 0)
             fprintf(stderr, "Failed to publish object '%s': %s\n", template_object.name, ubus_strerror(ret));
-
-	ret = ubus_add_object(ctx, &template_copy_object);
-    if (ret != 0)
-            fprintf(stderr, "Failed to publish object '%s': %s\n", template_copy_object.name, ubus_strerror(ret));
 
 	/*
 	uloop_timeout_set(&event, 2 * 1000);
