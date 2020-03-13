@@ -124,15 +124,11 @@ static void test_rulengd_invalid_recipes(void **state)
 	struct ruleng_json_rule *r = NULL;
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
 
-	printf("*state = %p, e = %p\n", *state, e);
-
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	/* no rule should be added, always fail if enter foreach */
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
     }
-
-	printf("%s %d\n", __func__, __LINE__);
 
 	json_object_set_by_string(&e->obj, "if", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "then", "1", json_type_int);
@@ -142,16 +138,12 @@ static void test_rulengd_invalid_recipes(void **state)
 		assert_int_equal(0, 1);
     }
 
-	printf("%s %d\n", __func__, __LINE__);
-
 	json_object_set_by_string(&e->obj, "if", "[1, 2, 3]", json_type_array);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
     }
-
-	printf("%s %d\n", __func__, __LINE__);
 
 	json_object_del_by_string(e->obj, "if");
 	json_object_set_by_string(&e->obj, "if[0].event", "test.sta", json_type_string);
@@ -161,8 +153,6 @@ static void test_rulengd_invalid_recipes(void **state)
 		assert_int_equal(0, 1);
 	}
 
-	printf("%s %d\n", __func__, __LINE__);
-
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
@@ -170,16 +160,12 @@ static void test_rulengd_invalid_recipes(void **state)
 		assert_int_equal(0, 1);
 	}
 
-	printf("%s %d\n", __func__, __LINE__);
-
 	json_object_set_by_string(&e->obj, "then.object", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
 	}
-
-	printf("%s %d\n", __func__, __LINE__);
 
 	json_object_del_by_string(e->obj, "if");
 	json_object_set_by_string(&e->obj, "then[0].object", "template", json_type_string);
@@ -189,8 +175,6 @@ static void test_rulengd_invalid_recipes(void **state)
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
 		assert_int_equal(0, 1);
 	}
-
-	printf("%s %d\n", __func__, __LINE__);
 }
 
 static void test_rulengd_valid_recipe(void **state)
@@ -198,22 +182,35 @@ static void test_rulengd_valid_recipe(void **state)
 	struct test_env *e = (struct test_env *) *state;
 	struct ruleng_json_rule *r = NULL;
 	struct ruleng_bus_ctx *ctx = e->r_ctx;
+	int counter = 0;
 
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 
 	/* no rule should be added, always fail if enter foreach */
-	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
+	LN_LIST_FOREACH(r, &ctx->json_rules, node)
 		assert_int_equal(0, 1);
-    }
 
 	json_object_set_by_string(&e->obj, "if", "[]", json_type_array);
 	json_object_set_by_string(&e->obj, "then", "[]", json_type_array);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	/* allow invalid cfg's as long as if and then keys are of correct type */
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
-	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
-		assert_int_equal(1, 1);
-	}
+	LN_LIST_FOREACH(r, &ctx->json_rules, node)
+		counter++;
+
+	assert_int_equal(counter, 1);
+
+	counter = 0;
+
+	json_object_set_by_string(&e->obj, "if[0].event", "test.event", json_type_string);
+	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
+	json_object_set_by_string(&e->obj, "then[0]", "{\"object\": \"template\"}", json_type_object);
+	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
+	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
+	LN_LIST_FOREACH(r, &ctx->json_rules, node)
+		counter++;
+
+	assert_int_equal(counter, 2);
 }
 
 static int setup(void** state) {
@@ -222,6 +219,7 @@ static int setup(void** state) {
 	e->obj = json_object_new_object();
 
 	remove("/tmp/test_file.txt");
+	remove("/etc/test_recipe1.json");
 	remove("/etc/test_recipe2.json");
 	e->counter = 0;
 

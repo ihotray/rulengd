@@ -193,6 +193,23 @@ static void test_rulengd_trigger_event_fail(void **state)
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
 
 	assert_int_equal(0, r->hits);
+
+	clear_rules_init(ctx);
+
+	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_string);
+	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
+	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
+		if (!strncmp("test.event", r->event.name, strlen("test.event")))
+			break;
+	}
+
+	blob_buf_init(&bb, 0);
+	blobmsg_add_u32(&bb, "placeholder", 1);
+	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+
+	assert_int_equal(0, r->hits);
+
 	blob_buf_free(&bb);
 }
 
@@ -212,10 +229,8 @@ static void test_rulengd_trigger_event(void **state)
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
 	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
-		printf("%s %d: event=%s\n", __func__, __LINE__, r->event.name);
-		if (!strncmp("test.event", r->event.name, strlen("test.event"))) {
+		if (!strncmp("test.event", r->event.name, strlen("test.event")))
 			break;
-		}
 	}
 
 	blob_buf_init(&bb, 0);
@@ -359,14 +374,15 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 			break;
 		}
 	}
-	/* this one will (could fail, extremely unlikely? if time(NULL) ticks between calls?) work becuase wasted_time will be 0 and wait_time is unset (0) */
-	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+	/* this one will (could fail, extremely unlikely? if time(NULL) ticks between calls?) work becuase wasted_time will be 0 and wait_time is unset (0) */	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
 
 	assert_int_equal(1, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(0, e->counter);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+
 
 	assert_int_equal(2, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
