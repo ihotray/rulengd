@@ -78,9 +78,8 @@ after each other, it will invoke
 and `ubus call wifi.ap.wlan0 dissassociate '{"macaddr": "00:e0:4c:68:05:9a"}'`,
 one second after eachother.
 
-Note: The order of the objects in the `if` and `then` arrays are important, the
-events are expected to come in that order and the execution will be performed
-as such.
+Note: The order of the objects in the `then` array is important as the invokes
+will be performed in the specified order.
 
 ```
 {

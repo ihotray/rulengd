@@ -1,208 +1,119 @@
-# Rule Engine
+# Function Specification
 
-Rulengd is OpenWrt version of IFTTT (If This Then That) mechanism. It allows
-configuring rules where options are ubus events with list of data and ubus
-methods with list of arguments.
+Rulengd is designed to allow configuration of rules which listens for a set of
+ubus events, and based on event type and argument, may invoke a set of ubus
+methods.
 
-## Overview
-Rulengd registers to ubus events on the system and keeps track of each
-configured rule. When an event of interest is received, it compares it with the
-configured rule and if the expected data of the event matches with the data of
-the event received, it invokes the configured ubus method with the given
-arguments.
+## Requirements
 
-With rulengd it is possible to add high level rules, for example presence rule
-where event is client and data is the MAC address of a specific person and the
-method to be executed is to sending an SMS to a specific email address with a
-specific message which are the arguments. It is also possible to create lower
-level rules such as when DSL training event is received blink Broadband LED.
+Four basic user requirements were identified for rulengd.
 
-With rulengd in the system, instead of creating applications to execute actions
-upon receiving specific events, it suffices to create corresponding rule entries
-to ruleng UCI configuration file, or json recipes.
+| Requirement												|
+| :---														|
+| [Read Configuration](#read_configuration)					|
+| [Read Recipe](#read_recipe) 								|
+| [Register Ubus Listener](#register_ubus_listener)			|
+| [Trigger Conditions](#trigger_conditions)					|
 
-<!--
-### UCI Config
-An example UCI rule listening for a `client` event.
+### Read Configuration
+
+The first and most basic requirement for rulengd is to be able to read UCI
+configuration, in order to be able to parse either a UCI configurable rule, or
+the path to JSON recipe to parse. For this the `libuci` library is used to read
+and parse a UCI configuration file. The default the UCI configuration path is
+set by:
 
 ```
-config rule
-    option event 'client'
-    list event_data '{"action": "connect"}'
-    list event_data '{"macaddr": "00:e0:4c:68:05:9a"}'
-    option method 'smtp.client->send'
-    list method_data '{"email": "email@domain.com"}'
-    list method_data '{"data": "Alice is home"}'
-```
-On a received event, if it contains the key-value pairs
-`{"action": "connect", "macaddr": "00:e0:4c:68:05:9a"}` the method `send` is
-invoked through the `smtp.client` object, with the arguments
-`{"email":"email@domain.com", data": "Alice is home"}`, sending an email to
-email@domain.com with the message "Alice is home".
-
-Note: Object and array arguments must be primitive types (we can't have object
-in the array).
--->
-
-## JSON Recipe
-
-For more granular event(s) and method(s) mapping, it is possible to create JSON
-files as recipes. If JSON recipes are used, the path to the recipe that should
-be read by rulengd needs to be specified in the rulengd UCI configuration file:
-
-```
-config rule
-    option recipe "/etc/recipe_1.json"
-```
-The JSON recipes follow a similar logic as the UCI configurations, at the root
-three keys may be found, `time`, `if` and `then`.
-
-The time key is necessary if the if-then-that condition depends on multiple
-events, then the `event_period` key specifies the time interval in which these
-events should be observed for the `then` case the be executed. If there are
-multiple entries in the `then` condition, `execution_interval` may be provided
-as a key, specifying the wait time between the execution of the calls.
-
-The `if` key expects an array of objects, denoting events to match, each entry
-containing an `event`, and `match` key.
-
-The `then` key also expects and array of objects, representing ubus methods to
-invoke on received events matching that of the `if`. The objects should contain
-the keys `object` and `method`, with an optional object, `args`, containing
-key-value pairs to provide as argument.
-
-
-In the following example recipe, listens for `wifi.sta` and `client` events,
-matching some key-value pairs. If the events are recorded within ten seconds
-after each other, it will invoke
-`ubus call smtp.client send '{"email":"email@domain.com, "data":"Alice is home",}'`
-and `ubus call wifi.ap.wlan0 dissassociate '{"macaddr": "00:e0:4c:68:05:9a"}'`,
-one second after eachother.
-
-Note: The order of the objects in the `if` and `then` arrays are important, the
-events are expected to come in that order and the execution will be performed
-as such.
-
-```
-{
-    "time" : {
-        "event_period" : 10,
-        "execution_interval" : 1
-    },
-    "if" : [
-        {
-            "event": "wifi.sta",
-            "match":{
-                "macaddr":"00:e0:4c:68:05:9a",
-                "action":"associated"
-            }
-        },
-        {   "event":"client",
-            "match": {
-                "action":"connect",
-                "macaddr":"00:e0:4c:68:05:9a",
-                "ipaddr":"192.168.1.231",
-                "network":"lan"
-            }
-        }
-    ],
-    "then" : [
-        {
-            "object": "smtp.client",
-            "method":"send",
-            "args" : {
-                "email":"email@domain.com",
-                "data": "Alice is home"
-            }
-        },
-        {
-            "object":"wifi.ap.wlan0",
-            "method":"disassociate",
-            "args": {
-                "macaddr":"00:e0:4c:68:05:9a"
-            }
-        }
-    ]
-}
+#define RULENG_DEFAULT_RULES_PATH "ruleng-test-rules"
 ```
 
+Meaning it will read `/etc/config/ruleng-test-rules`, however this may be set
+by the flag `-r <uci_file>`.
 
-## Building
-
-```
-mkdir build && cd build
-cmake ..
-make
-```
-### Example
-
-After building, do ```sudo make install```'. This will copy
-```./test/ruleng-test-rules``` to ```/etc/config```. Start ```rulengd```, and
-test it with
+The UCI rules are parsed in `ruleng_rules_get(3)`, iterating all the sections
+found in the configuration passed as the third argument `path` (originating
+from the `-r` flag), storing the parsed rules in a `struct ruleng_rule`.
 
 ```
-ubus send "test.event" "{'radio':0, 'reason':1, 'channels': [1,2,3], 'non-specified-key': 'non-specified-value'}"
+struct ruleng_rule {
+    LN_LIST_NODE(ruleng_rule) node;
+    struct ruleng_rules_event {
+        const char *name;
+        struct json_object *args;
+    } event;
+    struct ruleng_rules_action {
+        const char *object;
+        const char *name;
+        struct json_object *args;
+    } action;
+};
 ```
 
-This should write 'test event received!' to the ```/tmp/test_event.txt```.
+### Read Recipe
 
-## Unit Tests
-
-Rule engine tests are written in Cmocka. The scope of the tests is to test valid
-and invalid uci configurations, and json recipes, stressing all the rulengd
-functionality.
-
-The scope of the uci tests assumes `rpcd` and `ubusd` are active in the system
-and tests:
-1. Incomplete configurations
-2. Valid if-then-that ubus call
-
-The json recipes also assumes `rpcd` and `ubusd` to be running on the system and
-allow for more advanced configurable if-then-that logic. The json recipe tests
-focus on valid and invalid ways to:
-
-1. Setup one or multiple listeners
-2. Triggering events
-3. Invoking ubus methods
-4. Multiple trigger conditions
-5. Multiple then cases
-6. Execution intervals
-7. Multiple recipes
-8. Regex matched events
-
-In order to test that the if-then-that logic is performed correctly, the invokes
-in the json recipe examples are primarily done through a dummy object, prepared
-and compiled with the purpose of verifying rulengd.
-
-The object, `template`, offer three methods:
+Similarily to UCI rules, JSON recipes are found by reading the UCI configuration
+file, by iterating all the sections of type `rule`, for the configuration file
+specified by the `-r` flag. The UCI configurations is passed as the third
+argument, `package`, to the `ruleng_process_json(3)` method. On an encountered
+rule with a `recipe` option, the rule will be processed to a
+`struct ruleng_json_rule`.
 
 ```
-root@4e9447c01f8a:/builds/iopsys/rulengd/build# ubus -v list
-'template' @c138b721
-	"increment":{}
-	"reset":{}
-	"status":{}
+struct ruleng_json_rule {
+    LN_LIST_NODE(ruleng_json_rule) node;
+	bool regex;
+    struct ruleng_rules_time {
+        int total_wait;
+        int sleep_time;
+    } time;
+    struct ruleng_rules_if {
+        char *name;
+        struct json_object *args;
+    } event;
+    struct ruleng_rules_then {
+        struct json_object *args;
+    } action;
+	uint8_t rules_bitmask;
+	uint8_t rules_hit;
+    uint8_t hits;
+	int time_wasted;
+	time_t last_hit_time;
+};
 ```
 
-By incrementing a counter on successful if-then-that event, it is easy to track
-whether an invoke was successful or not, by calling the status method. In the
-setup phase of each test the counter is reset through the `reset` method.
+The JSON struct offers a bit more advanced configuration to be set.
 
+| Variable		| Description																								|
+| :---			| :---																										|
+| regex			| True if regex matching enabled for the arguments															|
+| time			| Represents total_time (`event_period`) and sleep_time (`execution_interval`) 								|
+| event			| Represents the `if` clause of the recipe, where name represents the name of each event, separated by `+` 	|
+| action		| Represents the `then` clause of the recipe, holding the array in the args variable 						|
+| rules_bitmask	| Bitmask where each bit represents an entry in the if condition 											|
+| rules_hit		| Bitmask which is used to represent rules hit, by events, zero-ed out when all conditions are met 			|
+| time_wasted	| Calculate time since last event hit if multiple conditions 												|
+| last_hit_time	| Last time an event was hit																				|
 
-## Dependencies
+### Register Ubus Listeners
 
-To successfully build rulengd, the following libraries are needed:
+From the structures `ruleng_rule` and `ruleng_json_rule` ubus listeners have to
+be setup, which is done by `ruleng_bus_register_events(3)` which also calls the
+functions parsing the configuration and recipes themselves. Iterating all parsed
+rules and invoking `ubus_register_event_handler(3)`, from `libubus`, for each.
+For simple UCI configuration rules, the callback `ruleng_event_cb` is set,
+whereas for JSON rules the callback is set to `ruleng_event_json_cb`.
 
-| Dependency  		| Link                                       						| License        |
-| ----------------- | ---------------------------------------------------------------- 	| -------------- |
-| libuci      		| https://git.openwrt.org/project/uci.git     					 	| LGPL 2.1       |
-| libubox     		| https://git.openwrt.org/project/libubox.git 					 	| BSD            |
-| libubus     		| https://git.openwrt.org/project/ubus.git    					 	| LGPL 2.1       |
-| libjson-c   		| https://s3.amazonaws.com/json-c_releases    					 	| MIT            |
+### Trigger Conditions
 
-Additionally, in order to build with the tests, the following libraries are needed:
+For normal UCI rules, the callback `ruleng_event_cb` is invoked on recorded
+event, iterating all the rules and parsing the ones of the same name for their
+arguments through `ruleng_bus_take_action(3)`. On a match the ubus method
+provided is invoked through `ruleng_ubus_call(2)`.
 
-| Dependency  				| Link                                       				| License       |
-| ------------------------- | --------------------------------------------------------- | ------------- |
-| cmocka                 	| https://cmocka.org/                                    	| Apache		|
-| libjson-editor			| https://dev.iopsys.eu/iopsys/json-editor   				| 	            |
+For JSON recipes, the callback `ruleng_event_json_cb` is used, and invoked on
+recorded event. The callback will iterate the `+` sign separated list and match
+against the event name, on a match validate the arguments through
+`ruleng_bus_take_action(3)`. On an argument match, validate the time against
+through `last_hit_time`, `time_wasted` and `total_time`. On a registered hit,
+unset the correspoding bit in `rules_hit`, and if it is zero-ed out, trigger
+the invokes through `ruleng_take_json_action`.
