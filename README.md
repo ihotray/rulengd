@@ -145,7 +145,7 @@ ubus send "test.event" "{'radio':0, 'reason':1, 'channels': [1,2,3], 'non-specif
 
 This should write 'test event received!' to the ```/tmp/test_event.txt```.
 
-## Unit Tests
+## Tests
 
 Rule engine tests are written in Cmocka. The scope of the tests is to test valid
 and invalid uci configurations, and json recipes, stressing all the rulengd
@@ -187,8 +187,10 @@ By incrementing a counter on successful if-then-that event, it is easy to track
 whether an invoke was successful or not, by calling the status method. In the
 setup phase of each test the counter is reset through the `reset` method.
 
+For more information on how rulengd is tested, see the
+[test specification](#./docs/testspec.md).
 
-## Dependencies ##
+## Dependencies
 
 To successfully build rulengd, the following libraries are needed:
 

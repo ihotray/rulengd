@@ -1,316 +1,208 @@
-# Function Specification
+# Rule Engine
 
-The scope of wifimngr is to expose the libwifi APIs over ubus.
+Rulengd is OpenWrt version of IFTTT (If This Then That) mechanism. It allows
+configuring rules where options are ubus events with list of data and ubus
+methods with list of arguments.
+
+## Overview
+Rulengd registers to ubus events on the system and keeps track of each
+configured rule. When an event of interest is received, it compares it with the
+configured rule and if the expected data of the event matches with the data of
+the event received, it invokes the configured ubus method with the given
+arguments.
+
+With rulengd it is possible to add high level rules, for example presence rule
+where event is client and data is the MAC address of a specific person and the
+method to be executed is to sending an SMS to a specific email address with a
+specific message which are the arguments. It is also possible to create lower
+level rules such as when DSL training event is received blink Broadband LED.
+
+With rulengd in the system, instead of creating applications to execute actions
+upon receiving specific events, it suffices to create corresponding rule entries
+to ruleng UCI configuration file, or json recipes.
+
+<!--
+### UCI Config
+An example UCI rule listening for a `client` event.
 
 ```
-root@dc667cfd1b01:/builds/iopsys/wifimngr# ubus -v list
-'wifi' @0af621bb
-	"status":{}
-'wifi.ap.test5' @45e2e3f3
-	"status":{}
-	"stats":{}
-	"assoclist":{}
-	"stations":{"sta":"String"}
-	"disconnect":{"sta":"String"}
-	"monitor":{"sta":"String","get":"Integer"}
-	"add_neighbor":{"bssid":"String","channel":"Integer","bssid_info":"String","reg":"Integer","phy":"Integer"}
-	"del_neighbor":{"bssid":"String"}
-	"list_neighbor":{"ssid":"String","client":"String"}
-	"request_neighbor":{"ssid":"String","client":"String"}
-	"request_transition":{"client":"String","bssid":"Array","timeout":"Integer"}
-	"add_vendor_ie":{"mgmt":"Integer","oui":"String","data":"String"}
-	"del_vendor_ie":{"mgmt":"Integer","oui":"String","data":"String"}
-'wifi.radio.test5' @0806532f
-	"status":{}
-	"stats":{}
-	"get":{"param":"String"}
-	"scan":{"ssid":"String","bssid":"String","channel":"Integer"}
-	"scanresults":{"bssid":"String"}
-	"autochannel":{"interval":"Integer","algo":"Integer","scans":"Integer"}
-'wifi.wps' @e5b4e9d9
-	"start":{"vif":"String","mode":"String","role":"String","pin":"String"}
-	"stop":{}
-	"status":{"vif":"String"}
-	"generate_pin":{}
-	"validate_pin":{"pin":"String"}
-	"showpin":{"vif":"String"}
-	"setpin":{"vif":"String","pin":"String"}
+config rule
+    option event 'client'
+    list event_data '{"action": "connect"}'
+    list event_data '{"macaddr": "00:e0:4c:68:05:9a"}'
+    option method 'smtp.client->send'
+    list method_data '{"email": "email@domain.com"}'
+    list method_data '{"data": "Alice is home"}'
+```
+On a received event, if it contains the key-value pairs
+`{"action": "connect", "macaddr": "00:e0:4c:68:05:9a"}` the method `send` is
+invoked through the `smtp.client` object, with the arguments
+`{"email":"email@domain.com", data": "Alice is home"}`, sending an email to
+email@domain.com with the message "Alice is home".
+
+Note: Object and array arguments must be primitive types (we can't have object
+in the array).
+-->
+
+## JSON Recipe
+
+For more granular event(s) and method(s) mapping, it is possible to create JSON
+files as recipes. If JSON recipes are used, the path to the recipe that should
+be read by rulengd needs to be specified in the rulengd UCI configuration file:
+
+```
+config rule
+    option recipe "/etc/recipe_1.json"
+```
+The JSON recipes follow a similar logic as the UCI configurations, at the root
+three keys may be found, `time`, `if` and `then`.
+
+The time key is necessary if the if-then-that condition depends on multiple
+events, then the `event_period` key specifies the time interval in which these
+events should be observed for the `then` case the be executed. If there are
+multiple entries in the `then` condition, `execution_interval` may be provided
+as a key, specifying the wait time between the execution of the calls.
+
+The `if` key expects an array of objects, denoting events to match, each entry
+containing an `event`, and `match` key.
+
+The `then` key also expects and array of objects, representing ubus methods to
+invoke on received events matching that of the `if`. The objects should contain
+the keys `object` and `method`, with an optional object, `args`, containing
+key-value pairs to provide as argument.
+
+
+In the following example recipe, listens for `wifi.sta` and `client` events,
+matching some key-value pairs. If the events are recorded within ten seconds
+after each other, it will invoke
+`ubus call smtp.client send '{"email":"email@domain.com, "data":"Alice is home",}'`
+and `ubus call wifi.ap.wlan0 dissassociate '{"macaddr": "00:e0:4c:68:05:9a"}'`,
+one second after eachother.
+
+Note: The order of the objects in the `if` and `then` arrays are important, the
+events are expected to come in that order and the execution will be performed
+as such.
+
+```
+{
+    "time" : {
+        "event_period" : 10,
+        "execution_interval" : 1
+    },
+    "if" : [
+        {
+            "event": "wifi.sta",
+            "match":{
+                "macaddr":"00:e0:4c:68:05:9a",
+                "action":"associated"
+            }
+        },
+        {   "event":"client",
+            "match": {
+                "action":"connect",
+                "macaddr":"00:e0:4c:68:05:9a",
+                "ipaddr":"192.168.1.231",
+                "network":"lan"
+            }
+        }
+    ],
+    "then" : [
+        {
+            "object": "smtp.client",
+            "method":"send",
+            "args" : {
+                "email":"email@domain.com",
+                "data": "Alice is home"
+            }
+        },
+        {
+            "object":"wifi.ap.wlan0",
+            "method":"disassociate",
+            "args": {
+                "macaddr":"00:e0:4c:68:05:9a"
+            }
+        }
+    ]
+}
 ```
 
-# Contents
-* [wifi](#wifi)
-* [wifi.ap.\<name\>](#wifiapname)
-* [wifi.radio.\<name\>](#wifiradioname)
-* [wifi.wps](#wifiwps)
 
-## APIs
+## Building
 
-Wifimngr publishes four different types objects, `wifi`, `wifi.ap.<name>`,
-`wifi.radio.<name>` and `wifi.wps`.
+```
+mkdir build && cd build
+cmake ..
+make
+```
+### Example
 
-### wifi
+After building, do ```sudo make install```'. This will copy
+```./test/ruleng-test-rules``` to ```/etc/config```. Start ```rulengd```, and
+test it with
 
-An object that publishes wifi radio and interface information.
+```
+ubus send "test.event" "{'radio':0, 'reason':1, 'channels': [1,2,3], 'non-specified-key': 'non-specified-value'}"
+```
 
-| Method			| Function ID		|
-| :---				| :---        		|
-| [status](#status) | 1					|
+This should write 'test event received!' to the ```/tmp/test_event.txt```.
 
-#### Methods
+## Unit Tests
 
-Methods descriptions of the `wifi` object.
+Rule engine tests are written in Cmocka. The scope of the tests is to test valid
+and invalid uci configurations, and json recipes, stressing all the rulengd
+functionality.
 
-##### status
-Exposes wifi radio statistics over ubus.
+The scope of the uci tests assumes `rpcd` and `ubusd` are active in the system
+and tests:
+1. Incomplete configurations
+2. Valid if-then-that ubus call
 
-* [status documentation](./api/wifi.md#status)
+The json recipes also assumes `rpcd` and `ubusd` to be running on the system and
+allow for more advanced configurable if-then-that logic. The json recipe tests
+focus on valid and invalid ways to:
 
-### wifi.ap.\<name\>
-Object for wifi access point interface functionality. One object per access
-point interface will be published.
-````bash
+1. Setup one or multiple listeners
+2. Triggering events
+3. Invoking ubus methods
+4. Multiple trigger conditions
+5. Multiple then cases
+6. Execution intervals
+7. Multiple recipes
+8. Regex matched events
+
+In order to test that the if-then-that logic is performed correctly, the invokes
+in the json recipe examples are primarily done through a dummy object, prepared
+and compiled with the purpose of verifying rulengd.
+
+The object, `template`, offer three methods:
+
+```
+root@4e9447c01f8a:/builds/iopsys/rulengd/build# ubus -v list
+'template' @c138b721
+	"increment":{}
+	"reset":{}
 	"status":{}
-	"stats":{}
-	"assoclist":{}
-	"stations":{"sta":"String"}
-	"disconnect":{"sta":"String"}
-	"monitor":{"sta":"String","get":"Integer"}
-	"add_neighbor":{"bssid":"String","channel":"Integer","bssid_info":"String","reg":"Integer","phy":"Integer"}
-	"del_neighbor":{"bssid":"String"}
-	"list_neighbor":{"ssid":"String","client":"String"}
-	"request_neighbor":{"ssid":"String","client":"String"}
-	"request_transition":{"client":"String","bssid":"Array","timeout":"Integer"}
-	"add_vendor_ie":{"mgmt":"Integer","oui":"String","data":"String"}
-	"del_vendor_ie":{"mgmt":"Integer","oui":"String","data":"String"}
-````
-| Method      								|Function ID	|
-| :--- 	  									| :---        	|
-| [status](#status-1)						| 2				|
-| [stats](#stats)							| 3				|
-| [assoclist](#assoclist)					| 4				|
-| [stations](#stations)						| 5				|
-| [disconnect](#disconnect)					| 6				|
-| [monitor](#monitor)				 		| 7				|
-| [add_neighbor](#add_neighbor)		 		| 8				|
-| [del_neighbor](#del_neighbor)		 		| 9				|
-| [list_neighbor](#list_neighbor)			| 10			|
-| [request_neighbor](#request_neighbor)		| 11			|
-| [request_transition](#request_transition)	| 12			|
-| [add_vendor_ie](#add_vendor_ie)			| 13			|
-| [del_vendor_ie](#del_vendor_ie)			| 14			|
+```
 
-#### Methods
+By incrementing a counter on successful if-then-that event, it is easy to track
+whether an invoke was successful or not, by calling the status method. In the
+setup phase of each test the counter is reset through the `reset` method.
 
-Method descriptions of the `wifi.ap.<name>` object.
 
-##### status
+## Dependencies
 
-Exposes access point interface statistics over ubus.
+To successfully build rulengd, the following libraries are needed:
 
-* [status documentation](./api/wifi.ap.md#status)
+| Dependency  		| Link                                       						| License        |
+| ----------------- | ---------------------------------------------------------------- 	| -------------- |
+| libuci      		| https://git.openwrt.org/project/uci.git     					 	| LGPL 2.1       |
+| libubox     		| https://git.openwrt.org/project/libubox.git 					 	| BSD            |
+| libubus     		| https://git.openwrt.org/project/ubus.git    					 	| LGPL 2.1       |
+| libjson-c   		| https://s3.amazonaws.com/json-c_releases    					 	| MIT            |
 
-##### stats
+Additionally, in order to build with the tests, the following libraries are needed:
 
-Exposes access point interface rx/tx statistics over ubus.
-
-* [stats documentation](./api/wifi.ap.md#stats)
-
-##### assoclist
-
-Exposes connected wireless clients over ubus.
-
-* [assoclist documentation](./api/wifi.ap.md#assoclist)
-
-##### stations
-
-Exposes client wifi client statistics over ubus.
-
-* [stations documentation](./api/wifi.ap.md#stations)
-
-##### disconnect
-
-Issue a deauthenticate to a wireles client.
-
-* [disconnect documentation](./api/wifi.ap.md#disconnect)
-
-##### monitor
-
-Monitor signal strength of unassociated station.
-
-* [monitor documentation](./api/wifi.ap.md#monitor)
-
-##### add_neighbor
-
-Add an access point to the neighbor list.
-
-* [add_neighbor documentation](./api/wifi.ap.md#add_neighbor)
-
-##### del_neighbor
-
-Delete an access point from the neighbor list
-
-* [del_neighbor documentation](./api/wifi.ap.md#del_neighbor)
-
-##### list_neighbor
-
-Prints neighbor access points in the network.
-
-* [list_neighbor documentation](./api/wifi.ap.md#list_neighbor)
-
-##### request_neighbor
-
-Triggers an 11k beacon report from an associated station.
-
-* [request_neighbor documentation](./api/wifi.ap.md#request_neighbor)
-
-##### request_transition
-
-Triggers an 11k beacon report from an associated station.
-
-* [request_transition documentation](./api/wifi.ap.md#request_transition)
-
-##### add_vendor_ie
-
-Appends vendor specific information element to an 802.11 management frame.
-
-* [add_vendor_ie documentation](./api/wifi.ap.md#add_vendor_ie)
-
-##### del_vendor_ie
-
-Remove vendor specific information element from an 802.11 management frame.
-
-* [del_vendor_ie documentation](./api/wifi.ap.md#del_vendor_ie)
-
-### wifi.radio.\<name\>
-
-Object for wifi device functionality. One object per device will be published to
-ubus.
-
-````bash
-'wifi.radio.test5' @0806532f
-	"status":{}
-	"stats":{}
-	"get":{"param":"String"}
-	"scan":{"ssid":"String","bssid":"String","channel":"Integer"}
-	"scanresults":{"bssid":"String"}
-	"autochannel":{"interval":"Integer","algo":"Integer","scans":"Integer"}
-````
-| Method     					| Function ID	|
-| :---							| :---        	|
-| [status](#status-2)			| 15			|
-| [stats](#stats-1)				| 16			|
-| [get](#get)					| 17			|
-| [scan](#scan)					| 18			|
-| [scanresults](#scanresults)	| 19			|
-| [autochannel](#autochannel)	| 20			|
-
-#### Methods
-
-Method descriptions of the `wifi.radio.<name>` object.
-
-##### status
-
-Exposes radio statistics over ubus.
-
-* [status documentation](./api/wifi.radio.md#status)
-
-##### stats
-
-Exposes radio stats over ubus.
-
-* [stats documentation](./api/wifi.radio.md#stats)
-
-##### get
-
-Exposes temperature of the WiFi card.
-
-* [get documentation](./api/wifi.radio.md#get)
-
-##### scan
-
-Scans the radio for broadcasted SSIDs.
-
-* [scan documentation](./api/wifi.radio.md#scan)
-
-##### scanresults
-
-Exposes available SSIDs from a radio scan over ubus.
-
-* [scanresults documentation](./api/wifi.radio.md#scanresults)
-
-##### autochannel
-
-Selects a channel for the radio to operate at.
-
-* [autochannel documentation](./api/wifi.radio.md#autochannel)
-
-### wifi.wps
-
-Object for WiFi Protected Setup functionality.
-
-````bash
-	"start":{"vif":"String","mode":"String","role":"String","pin":"String"}
-	"stop":{}
-	"status":{"vif":"String"}
-	"generate_pin":{}
-	"validate_pin":{"pin":"String"}
-	"showpin":{"vif":"String"}
-	"setpin":{"vif":"String","pin":"String"}
-````
-| Method     						| Function ID	|
-| :--- 								| :---       	|
-| [start](#start)					| 21			|
-| [stop](#stop)						| 22			|
-| [status](#status-3)				| 23			|
-| [generate_pin](#generate_pin)		| 24			|
-| [validate_pin](#show_pin)			| 25			|
-| [showpin](#validate_pin)			| 26			|
-| [setpin](#setpin)					| 27			|
-
-#### Methods
-
-Descriptions of `wifi.wps` methods.
-
-
-##### start
-
-Initiates WPS functionality, default uses push button configuration (PBC).
-
-* [start documentation](./api/wifi.wps.md#start)
-
-##### stop
-
-Stops any WPS functionality.
-
-* [stop documentation](./api/wifi.wps.md#stop)
-
-##### status
-
-Gives current state of the WPS.
-
-* [status documentation](./api/wifi.wps.md#status)
-
-##### generate_pin
-
-Method generating a valid pin for WPS.
-
-* [generate_pin documentation](./api/wifi.wps.md#generate_pin)
-
-##### show_pin
-
-Shows currently set PIN, if any.
-
-* [showpin documentation](./api/wifi.wps.md#showpin)
-
-
-##### validate_pin
-
-Takes a pin input and shows whether it is a valid PIN or not.
-
-* [validate_pin documentation](./api/wifi.wps.md#validate_pin)
-
-##### setpin
-
-Takes a pin input and sets it as the active WPS pin for the device.
-
-* [setpin documentation](./api/wifi.wps.md#setpin)
+| Dependency  				| Link                                       				| License       |
+| ------------------------- | --------------------------------------------------------- | ------------- |
+| cmocka                 	| https://cmocka.org/                                    	| Apache		|
+| libjson-editor			| https://dev.iopsys.eu/iopsys/json-editor   				| 	            |
