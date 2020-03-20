@@ -1,8 +1,8 @@
 # Function Specification
 
-Rulengd is designed to allow configuration of rules which listens for a set of
-ubus events, and based on event type and argument, may invoke a set of ubus
-methods.
+Rulengd is a daemon implementing if-then-that rules, read from configuration
+files. A rule listens for a set of ubus events, and based on the arguments of
+an observed event, may invoke a set of ubus methods.
 
 ## Requirements
 
@@ -17,22 +17,31 @@ Four basic user requirements were identified for rulengd.
 
 ### Read Configuration
 
-The first and most basic requirement for rulengd is to be able to read UCI
-configuration, in order to be able to parse either a UCI configurable rule, or
-the path to JSON recipe to parse. For this the `libuci` library is used to read
-and parse a UCI configuration file. The default the UCI configuration path is
-set by:
+The first and most basic requirement for rulengd is to be able to read rules
+from configuration.
+
+#### Why
+
+The OpenWrt way of configuring a daemon is to read a UCI configuration file.
+Rulengd should be able to either read a basic rule directly from UCI
+configuration, or read the path to a more detailed JSON recipe.
+
+#### How
+
+To read and parse UCI configuration the `libuci` library is used. The default
+the UCI configuration path is set by:
 
 ```
 #define RULENG_DEFAULT_RULES_PATH "ruleng-test-rules"
 ```
 
-Meaning it will read `/etc/config/ruleng-test-rules`, however this may be set
-by the flag `-r <uci_file>`.
+Meaning it will read `/etc/config/ruleng-test-rules`, however this may be
+overwritten by the flag `-r <uci_file>`.
 
-The UCI rules are parsed in `ruleng_rules_get(3)`, iterating all the sections
-found in the configuration passed as the third argument `path` (originating
-from the `-r` flag), storing the parsed rules in a `struct ruleng_rule`.
+The UCI rules are parsed in the function `ruleng_rules_get(3)`, iterating all
+the sections of the type `rule` found in the configuration path passed as the
+third argument `path` (originating from the `-r` flag), parsing the UCI fields
+representing the rule and preparing the struct `struct ruleng_rule`.
 
 ```
 struct ruleng_rule {
@@ -51,11 +60,25 @@ struct ruleng_rule {
 
 ### Read Recipe
 
+Because of restrictions in UCI, there are limits to the complexity of the UCI
+rules. To offer more configuration options, rulengd supports JSON recipes,
+describing if-then-that logic.
+
+#### Why
+
+The UCI configuration file offers the possibility to configure simple rules, but
+to create more complex rules with multiple dependencies and invokes through UCI
+would be convoluted, make for messy configurations that are difficult to
+read and parse. To support more complex rules, rulengd may also read JSON
+recipes, representing more advanced if-then-that logic in a cleaner, easier to
+parse way.
+
+#### How
+
 Similarily to UCI rules, JSON recipes are found by reading the UCI configuration
-file, by iterating all the sections of type `rule`, for the configuration file
-specified by the `-r` flag. The UCI configurations is passed as the third
-argument, `package`, to the `ruleng_process_json(3)` method. On an encountered
-rule with a `recipe` option, the rule will be processed to a
+file, by iterating all the sections of type `rule`. On an encountered rule with
+a `recipe` option, providing the path to a JSON recipe, the recipe found at that
+path will be processed to a rule, represented by the structure
 `struct ruleng_json_rule`.
 
 ```
@@ -81,7 +104,7 @@ struct ruleng_json_rule {
 };
 ```
 
-The JSON struct offers a bit more advanced configuration to be set.
+The JSON struct allows for more advanced configuration to be set.
 
 | Variable		| Description																								|
 | :---			| :---																										|
@@ -96,24 +119,49 @@ The JSON struct offers a bit more advanced configuration to be set.
 
 ### Register Ubus Listeners
 
-From the structures `ruleng_rule` and `ruleng_json_rule` ubus listeners have to
-be setup, which is done by `ruleng_bus_register_events(3)` which also calls the
-functions parsing the configuration and recipes themselves. Iterating all parsed
-rules and invoking `ubus_register_event_handler(3)`, from `libubus`, for each.
-For simple UCI configuration rules, the callback `ruleng_event_cb` is set,
-whereas for JSON rules the callback is set to `ruleng_event_json_cb`.
+The intra-process communication used by rulengd is built ontop of ubus.
+
+#### Why
+
+Setting up ubus listeners for events is a part of the _if_ condition of
+if-then-that logic.
+
+#### How
+
+When parsing the rules in `ruleng_bus_register_events(3)`, ubus listeners are
+simultaneously prepared, using the structures representing the rulengd rules,
+`ruleng_rule` and `ruleng_json_rule`. For each parsed rule, the libubus API
+`ubus_register_event_handler(3)` is invoked. For simple UCI configuration rules,
+the callback `ruleng_event_cb` is set, whereas for JSON rules the callback is
+set to `ruleng_event_json_cb`.
 
 ### Trigger Conditions
 
-For normal UCI rules, the callback `ruleng_event_cb` is invoked on recorded
-event, iterating all the rules and parsing the ones of the same name for their
-arguments through `ruleng_bus_take_action(3)`. On a match the ubus method
-provided is invoked through `ruleng_ubus_call(2)`.
+The trigger conditions represents the _then-that_ part of the if-then-that
+logic.
 
-For JSON recipes, the callback `ruleng_event_json_cb` is used, and invoked on
-recorded event. The callback will iterate the `+` sign separated list and match
-against the event name, on a match validate the arguments through
-`ruleng_bus_take_action(3)`. On an argument match, validate the time against
-through `last_hit_time`, `time_wasted` and `total_time`. On a registered hit,
-unset the correspoding bit in `rules_hit`, and if it is zero-ed out, trigger
-the invokes through `ruleng_take_json_action`.
+#### Why
+
+All type of rules support the configuration of some options (arguments), which
+need to be met by the recorded event prior to triggering an invoke. To support
+more complex rules, rulengd spports more configuration of arguments and
+conditions which need to be met before invoking a ubus, namely
+multiple conditions within some time frame.
+
+#### How
+
+For normal UCI rules, the callback `ruleng_event_cb` is invoked on recorded
+events, iterating all the rules, parsing the ones matching this event type,
+calling `ruleng_bus_take_action(3)` to determine whether the event meets the
+condition of the matching rule type. On a match the ubus method specified is
+invoked through `ruleng_ubus_call(2)`.
+
+For JSON recipes, the callback `ruleng_event_json_cb` is provided with the
+listener, and invoked on recorded event. The callback will iterate all rules,
+each rule contains a `+` sign separated list of events it depents upon, and match
+against the recorded event type. On a match rulengd will validate the arguments
+for the matched rule through `ruleng_bus_take_action(3)`, on an argument match,
+validate the time against through `last_hit_time`, `time_wasted` and
+`total_time`. On a registered hit, unset the correspoding bit in `rules_hit`,
+and if the bitmap is zero-ed out, trigger the invokes conditions through
+`ruleng_take_json_action`.
