@@ -374,8 +374,8 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 			break;
 		}
 	}
-	/* this one will (could fail, extremely unlikely? if time(NULL) ticks between calls?) work becuase wasted_time will be 0 and wait_time is unset (0) */	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
-	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+	/* this one will (could fail, extremely unlikely? if time(NULL) ticks between calls?) work becuase wasted_time will be 0 and wait_time is unset (0) */
+	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
 
 	assert_int_equal(1, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
