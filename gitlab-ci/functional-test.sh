@@ -13,7 +13,7 @@ make functional-test -C ./build
 
 #report part
 #GitLab-CI output
-make functional-coverage -C ./build
+make functional-coverage -C ./build CTEST_OUTPUT_ON_FAILURE=TRUE
 
 supervisorctl stop all
 supervisorctl status
