@@ -142,7 +142,8 @@ void ruleng_event_json_cb(struct ubus_context *ubus_ctx, \
 				B_UNSET(r->rules_hit, i);
 			}
 			blob_buf_free(&eargs);
-			break;
+			// TODO: break or not to break?
+			//break;
 		}
 
 		if(0 == r->rules_hit) {
