@@ -636,7 +636,7 @@ static void test_rulengd_regex(void **state)
 
 	json_object_set_by_string(&e->obj, "if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "^test\\..*", json_type_string);
-	json_object_set_by_string(&e->obj, "if[0].regex", "1", json_type_int);
+	json_object_set_by_string(&e->obj, "regex", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "then[0]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
