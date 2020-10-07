@@ -5,6 +5,7 @@
 #include <libubox/uloop.h>
 #include <libubus.h>
 #include <libubox/blobmsg_json.h>
+#include <regex.h>
 
 #include "utils.h"
 #include "ruleng_bus.h"
@@ -77,8 +78,42 @@ void ruleng_event_json_cb(struct ubus_context *ubus_ctx, \
 		char *event = NULL;
 
 		for(int i=0; (event = strsep(&event_titles, JSON_EVENT_SEP)); ++i) {
-			if (0 != strcmp(event, type))
+			int reti;
+			regex_t regex_exp;
+			char msgbuf[100];
+
+			// Dont parse after reading final separator
+			if (event == orig + strlen(r->event.name))
+				break;
+
+			if (!r->regex) {
+				RULENG_INFO("No regex match search!\n");
+				if (0 != strcmp(event, type))
 				continue;
+			} else {
+				RULENG_INFO("Trying to regex match!\n");
+				reti = regcomp(&regex_exp, event, 0);
+				if (reti) {
+					RULENG_ERR("Could not compile regex\n");
+					continue;
+				}
+
+				reti = regexec(&regex_exp, type, 0, NULL, 0);
+				if (reti == REG_NOMATCH) {
+					regfree(&regex_exp);
+					continue;
+				} else if (reti) {
+					regerror(reti, &regex_exp, msgbuf, sizeof(msgbuf));
+					RULENG_ERR("Regex match failed: %s\n", msgbuf);
+					regfree(&regex_exp);
+					continue;
+				}
+
+				regfree(&regex_exp);
+			}
+
+			RULENG_INFO("Regex match |%s:%s|", event, type);
+
 
 			json_object *jobj = json_object_array_get_idx(r->event.args, i);
 			json_object *args;
@@ -107,8 +142,10 @@ void ruleng_event_json_cb(struct ubus_context *ubus_ctx, \
 				B_UNSET(r->rules_hit, i);
 			}
 			blob_buf_free(&eargs);
+			break;
 		}
-		if(0 == r->rules_hit ) {
+
+		if(0 == r->rules_hit) {
 			// Clear couters and take action
 			r->time_wasted = 0;
 			r->last_hit_time = 0;
@@ -134,7 +171,7 @@ ruleng_process_json(struct ruleng_rules_ctx *ctx, struct ruleng_json_rules *rule
 		RULENG_DEBUG("failed to load uci");
 		return rc;
 	}
-	
+
 	uci_foreach_element(&p->sections, e) {
 		s = uci_to_section(e);
 		const char *r_name = uci_lookup_option_string(ctx->uci_ctx, s, JSON_RECIPE_FIELD);
@@ -168,14 +205,19 @@ ruleng_process_json(struct ruleng_rules_ctx *ctx, struct ruleng_json_rules *rule
 		rule->event.args = if_field;
 
 		int len = json_object_array_length(rule->event.args);
-		char event_name[256]={'\0'};;
+		char event_name[256]={'\0'};
+
+		json_object_object_get_ex(root, JSON_REGEX_FIELD, &tmp);
+		if (tmp) {
+			rule->regex = json_object_get_boolean(tmp);
+			RULENG_INFO("REGEX SET TO %d\n", rule->regex);
+		}
+
 		for(int i=0; i < len; ++i ) {
 				B_SET(rule->rules_bitmask, i);
 				json_object *temp = json_object_array_get_idx(rule->event.args, i);
 				sprintf(event_name+strlen(event_name),"%s%s",get_json_string_object(temp, JSON_EVENT_FIELD),
 				JSON_EVENT_SEP);
-				json_object_object_get_ex(temp, JSON_REGEX_FIELD, &tmp);
-				rule->regex = json_object_get_boolean(tmp);
 		}
 		rule->rules_hit = rule->rules_bitmask;
 		rule->event.name = strdup(event_name);
