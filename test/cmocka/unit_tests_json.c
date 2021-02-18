@@ -54,67 +54,28 @@ static void clear_rules_init(struct ruleng_bus_ctx *ctx)
 
 	ruleng_json_rules_free(&ctx->json_rules);
 
-	LN_LIST_HEAD_INITIALIZE(ctx->json_rules);
-}
-
-static void invoke_status_cb(struct ubus_request *req, int type, struct blob_attr *msg)
-{
-	struct test_env *e = (struct test_env *) req->priv;
-	struct json_object *obj, *tmp;
-	char *str;
-
-	str = blobmsg_format_json(msg, true);
-	assert_non_null(str);
-
-	obj = json_tokener_parse(str);
-	assert_non_null(obj);
-
-	json_object_object_get_ex(obj, "counter", &tmp);
-	assert_non_null(tmp);
-
-	e->counter = json_object_get_int(tmp);
-
-	free(str);
-	json_object_put(obj);
-}
-
-/* invoke a proxied template object */
-static void invoke_template(void **state, char *method, void *cb, void *priv)
-{
-	struct test_env *e = (struct test_env *) *state;
-	struct blob_buf bb = {0};
-	int rv;
-
-	rv = blob_buf_init(&bb, 0);
-	assert_int_equal(rv, 0);
-
-	ubus_lookup_id(e->ctx, "template", &e->template_id); // why is this overwritten?
-
-	rv = ubus_invoke(e->ctx, e->template_id, method, bb.head, cb, priv, 1500);
-	assert_int_equal(rv, 0);
-
-	blob_buf_free(&bb);
+	INIT_LIST_HEAD(&ctx->json_rules);
 }
 
 static int setup_bus_ctx(struct ruleng_bus_ctx **ctx)
 {
 	struct ruleng_rules_ctx *com_ctx;
-    struct ruleng_bus_ctx *_ctx;
+	struct ruleng_bus_ctx *_ctx;
 
 	remove("/etc/test_recipe1.json");
 
 	ruleng_rules_ctx_init(&com_ctx);
 
-    *ctx = calloc(1, sizeof(struct ruleng_bus_ctx));
-    if (NULL == *ctx) {
-        fprintf(stderr, "error allocating main bus context");
-        return -1;
-    }
+	*ctx = calloc(1, sizeof(struct ruleng_bus_ctx));
+	if (NULL == *ctx) {
+		fprintf(stderr, "error allocating main bus context");
+		return -1;
+	}
 
 	_ctx = *ctx;
-    _ctx->com_ctx = com_ctx;
+	_ctx->com_ctx = com_ctx;
 
-	LN_LIST_HEAD_INITIALIZE(_ctx->json_rules);
+	INIT_LIST_HEAD(&_ctx->json_rules);
 	return 0;
 }
 
@@ -126,55 +87,60 @@ static void test_rulengd_invalid_recipes(void **state)
 
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 	/* no rule should be added, always fail if enter foreach */
-	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
+	list_for_each_entry(r, &ctx->json_rules, list)
 		assert_int_equal(0, 1);
-    }
 
-	json_object_set_by_string(&e->obj, "if", "1", json_type_int);
-	json_object_set_by_string(&e->obj, "then", "1", json_type_int);
+	json_object_set_by_string(&e->obj, "test_rule.if", "1", json_type_int);
+	json_object_set_by_string(&e->obj, "test_rule.then", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
-	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
+	list_for_each_entry(r, &ctx->json_rules, list)
 		assert_int_equal(0, 1);
-    }
 
-	json_object_set_by_string(&e->obj, "if", "[1, 2, 3]", json_type_array);
+	json_object_set_by_string(&e->obj, "test_rule.if", "[1, 2, 3]", json_type_array);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
-	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
+	list_for_each_entry(r, &ctx->json_rules, list)
 		assert_int_equal(0, 1);
-    }
-
-	json_object_del_by_string(e->obj, "if");
-	json_object_set_by_string(&e->obj, "if[0].event", "test.sta", json_type_string);
+	
+	json_object_set_by_string(&e->obj, "time.event_period", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
-	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
+	list_for_each_entry(r, &ctx->json_rules, list)
 		assert_int_equal(0, 1);
-	}
 
-	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
+	json_object_set_by_string(&e->obj, "time.execution_interval", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
-	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
+	list_for_each_entry(r, &ctx->json_rules, list)
 		assert_int_equal(0, 1);
-	}
 
-	json_object_set_by_string(&e->obj, "then.object", "1", json_type_int);
+	json_object_del_by_string(e->obj, "test_rule.if");
+	json_object_set_by_string(&e->obj, "test_rule.if[0].event", "test.sta", json_type_string);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
-	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
+	list_for_each_entry(r, &ctx->json_rules, list)
 		assert_int_equal(0, 1);
-	}
 
-	json_object_del_by_string(e->obj, "if");
-	json_object_set_by_string(&e->obj, "then[0].object", "template", json_type_string);
-	json_object_set_by_string(&e->obj, "then[0].method", "increment", json_type_string);
+	json_object_set_by_string(&e->obj, "test_rule.if[0].match.placeholder", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
-	LN_LIST_FOREACH(r, &ctx->json_rules, node) {
+	list_for_each_entry(r, &ctx->json_rules, list)
 		assert_int_equal(0, 1);
-	}
+
+	json_object_set_by_string(&e->obj, "test_rule.then.object", "1", json_type_int);
+	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
+	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
+	list_for_each_entry(r, &ctx->json_rules, list)
+		assert_int_equal(0, 1);
+
+	json_object_del_by_string(e->obj, "test_rule.if");
+	json_object_set_by_string(&e->obj, "test_rule.then[0].object", "template", json_type_string);
+	json_object_set_by_string(&e->obj, "test_rule.then[0].method", "increment", json_type_string);
+	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
+	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
+	list_for_each_entry(r, &ctx->json_rules, list)
+		assert_int_equal(0, 1);
 }
 
 static void test_rulengd_valid_recipe(void **state)
@@ -187,28 +153,31 @@ static void test_rulengd_valid_recipe(void **state)
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
 
 	/* no rule should be added, always fail if enter foreach */
-	LN_LIST_FOREACH(r, &ctx->json_rules, node)
+	list_for_each_entry(r, &ctx->json_rules, list)
 		assert_int_equal(0, 1);
 
-	json_object_set_by_string(&e->obj, "if", "[]", json_type_array);
-	json_object_set_by_string(&e->obj, "then", "[]", json_type_array);
+	json_object_set_by_string(&e->obj, "test_rule.if", "[]", json_type_array);
+	json_object_set_by_string(&e->obj, "test_rule.then", "[]", json_type_array);
+	json_object_set_by_string(&e->obj, "test_rule.if_operator", "OR", json_type_string);
+	json_object_set_by_string(&e->obj, "test_rule.if_event_period", "1", json_type_int);
+	json_object_set_by_string(&e->obj, "test_rule.then_exec_interval", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	/* allow invalid cfg's as long as if and then keys are of correct type */
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
-	LN_LIST_FOREACH(r, &ctx->json_rules, node)
-		counter++;
+	list_for_each_entry(r, &ctx->json_rules, list)
+		++counter;
 
 	assert_int_equal(counter, 1);
 
 	counter = 0;
 
-	json_object_set_by_string(&e->obj, "if[0].event", "test.event", json_type_string);
-	json_object_set_by_string(&e->obj, "if[0].match.placeholder", "1", json_type_int);
-	json_object_set_by_string(&e->obj, "then[0]", "{\"object\": \"template\"}", json_type_object);
+	json_object_set_by_string(&e->obj, "test_rule.if[0].event", "test.event", json_type_string);
+	json_object_set_by_string(&e->obj, "test_rule.if[0].match.placeholder", "1", json_type_int);
+	json_object_set_by_string(&e->obj, "test_rule.then[0]", "{\"object\": \"template\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	ruleng_process_json(ctx->com_ctx, &ctx->json_rules, "ruleng-test-recipe");
-	LN_LIST_FOREACH(r, &ctx->json_rules, node)
-		counter++;
+	list_for_each_entry(r, &ctx->json_rules, list)
+		++counter;
 
 	assert_int_equal(counter, 2);
 }
@@ -257,7 +226,7 @@ static int group_teardown(void** state) {
 
 	ruleng_rules_ctx_free(e->r_ctx->com_ctx);
 
-    free(e->r_ctx);
+	free(e->r_ctx);
 	free(e);
 	return 0;
 }

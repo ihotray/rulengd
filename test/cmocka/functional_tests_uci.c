@@ -53,7 +53,7 @@ struct test_env {
 static void clear_rules_init(struct ruleng_bus_ctx *ctx)
 {
 	ruleng_rules_free(&ctx->rules);
-	LN_LIST_HEAD_INITIALIZE(ctx->rules);
+	INIT_LIST_HEAD(&ctx->rules);
 }
 
 static void test_rulengd_test_event_uci(void **state)
@@ -131,25 +131,25 @@ static int setup_bus_ctx(struct ruleng_bus_ctx **ctx)
 
 	ruleng_rules_ctx_init(&com_ctx);
 
-    *ctx = calloc(1, sizeof(struct ruleng_bus_ctx));
-    if (NULL == *ctx) {
-        fprintf(stderr, "error allocating main bus context");
-        return -1;
-    }
-    struct ruleng_bus_ctx *_ctx = *ctx;
+	*ctx = calloc(1, sizeof(struct ruleng_bus_ctx));
+	if (NULL == *ctx) {
+		fprintf(stderr, "error allocating main bus context");
+		return -1;
+	}
+	struct ruleng_bus_ctx *_ctx = *ctx;
 
-    struct ubus_context *ubus_ctx = ubus_connect(NULL);
-    if (NULL == ubus_ctx) {
-        fprintf(stderr, "error ubus connect: /var/run/ubus.sock\n");
-        return -1;
-    }
-    _ctx->com_ctx = com_ctx;
-    _ctx->ubus_ctx = ubus_ctx;
+	struct ubus_context *ubus_ctx = ubus_connect(NULL);
+	if (NULL == ubus_ctx) {
+		fprintf(stderr, "error ubus connect: /var/run/ubus.sock\n");
+		return -1;
+	}
+	_ctx->com_ctx = com_ctx;
+	_ctx->ubus_ctx = ubus_ctx;
 
-    LN_LIST_HEAD_INITIALIZE(_ctx->rules);
-    if (RULENG_RULES_OK != ruleng_rules_get(_ctx->com_ctx, &_ctx->rules, "ruleng-test-uci")) {
-        return -1;
-    }
+	INIT_LIST_HEAD(&_ctx->rules);
+	if (RULENG_RULES_OK != ruleng_rules_get(_ctx->com_ctx, &_ctx->rules, "ruleng-test-uci")) {
+		return -1;
+	}
 
 	return 0;
 }
@@ -195,10 +195,10 @@ static int group_setup(void** state) {
 static int group_teardown(void** state) {
 	struct test_env *e = (struct test_env *) *state;
 
-    ruleng_rules_ctx_free(e->r_ctx->com_ctx);
+	ruleng_rules_ctx_free(e->r_ctx->com_ctx);
 	ubus_free(e->ctx);
 
-    free(e->r_ctx);
+	free(e->r_ctx);
 	free(e);
 	return 0;
 }

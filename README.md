@@ -53,14 +53,18 @@ be read by rulengd needs to be specified in the rulengd UCI configuration file:
 config rule
     option recipe "/etc/recipe_1.json"
 ```
-The JSON recipes follow a similar logic as the UCI configurations, at the root
-three keys may be found, `time`, `if` and `then`.
+The JSON recipes follow a similar logic as the UCI configurations, within multiple
+root rules, five keys can be found: `if_operator`, `if_event_period`, `if`,
+`then_exec_interval` and `then`.
 
-The time key is necessary if the if-then-that condition depends on multiple
-events, then the `event_period` key specifies the time interval in which these
-events should be observed for the `then` case the be executed. If there are
-multiple entries in the `then` condition, `execution_interval` may be provided
-as a key, specifying the wait time between the execution of the calls.
+The time-related keys are necessary if the if-this-then-that condition depends on
+multiple events where the `if_operator` is set to *AND*. The `if_event_period` key
+specifies the time interval in which these events should be observed for the `then`
+calls to be executed. The operator can also be set to *OR*, which is the default
+behavior if there are no given value, and it will trigger the `then` if only one of
+the `if` condition is met. If there are multiple entries in the `then` condition,
+`then_exec_interval` may be provided as a key, specifying the wait time between
+the execution of the calls.
 
 The `if` key expects an array of objects, denoting events to match, each entry
 containing an `event`, and `match` key.
@@ -68,7 +72,8 @@ containing an `event`, and `match` key.
 The `then` key also expects and array of objects, representing ubus methods to
 invoke on received events matching that of the `if`. The objects should contain
 the keys `object` and `method`, with an optional object, `args`, containing
-key-value pairs to provide as argument.
+key-value pairs to provide as argument. If you want to execute a shell command, the
+`cli` object must replace `object` in this array.
 
 
 In the following example recipe, listens for `wifi.sta` and `client` events,
@@ -81,46 +86,47 @@ one second after eachother.
 Note: The order of the objects in the `then` array is important as the invokes
 will be performed in the specified order.
 
-```
+```JSON
 {
-    "time" : {
+    "wifi_email": {
+        "if_operator" : "AND",
         "event_period" : 10,
-        "execution_interval" : 1
-    },
-    "if" : [
-        {
-            "event": "wifi.sta",
-            "match":{
-                "macaddr":"00:e0:4c:68:05:9a",
-                "action":"associated"
+        "execution_interval" : 1,
+        "if" : [
+            {
+                "event": "wifi.sta",
+                "match":{
+                    "macaddr":"00:e0:4c:68:05:9a",
+                    "action":"associated"
+                }
+            },
+            {   "event":"client",
+                "match": {
+                    "action":"connect",
+                    "macaddr":"00:e0:4c:68:05:9a",
+                    "ipaddr":"192.168.1.231",
+                    "network":"lan"
+                }
             }
-        },
-        {   "event":"client",
-            "match": {
-                "action":"connect",
-                "macaddr":"00:e0:4c:68:05:9a",
-                "ipaddr":"192.168.1.231",
-                "network":"lan"
+        ],
+        "then" : [
+            {
+                "object": "smtp.client",
+                "method":"send",
+                "args" : {
+                    "email":"email@domain.com",
+                    "data": "Alice is home"
+                }
+            },
+            {
+                "object":"wifi.ap.wlan0",
+                "method":"disassociate",
+                "args": {
+                    "macaddr":"00:e0:4c:68:05:9a"
+                }
             }
-        }
-    ],
-    "then" : [
-        {
-            "object": "smtp.client",
-            "method":"send",
-            "args" : {
-                "email":"email@domain.com",
-                "data": "Alice is home"
-            }
-        },
-        {
-            "object":"wifi.ap.wlan0",
-            "method":"disassociate",
-            "args": {
-                "macaddr":"00:e0:4c:68:05:9a"
-            }
-        }
-    ]
+        ]
+    }
 }
 ```
 
@@ -134,7 +140,7 @@ make
 ```
 ### Example
 
-After building, do ```sudo make install```'. This will copy
+After building, do ```sudo make install```. This will copy
 ```./test/ruleng-test-rules``` to ```/etc/config```. Start ```rulengd```, and
 test it with
 
@@ -193,12 +199,13 @@ For more information on how rulengd is tested, see the
 
 To successfully build rulengd, the following libraries are needed:
 
-| Dependency  		| Link                                       						| License        |
-| ----------------- | ---------------------------------------------------------------- 	| -------------- |
-| libuci      		| https://git.openwrt.org/project/uci.git     					 	| LGPL 2.1       |
-| libubox     		| https://git.openwrt.org/project/libubox.git 					 	| BSD            |
-| libubus     		| https://git.openwrt.org/project/ubus.git    					 	| LGPL 2.1       |
-| libjson-c   		| https://s3.amazonaws.com/json-c_releases    					 	| MIT            |
+| Dependency		| Link																| License		|
+| ----------------- | ----------------------------------------------------------------- | ------------- |
+| libuci			| https://git.openwrt.org/project/uci.git						 	| LGPL 2.1		|
+| libubox			| https://git.openwrt.org/project/libubox.git					 	| BSD			|
+| libubus			| https://git.openwrt.org/project/ubus.git						 	| LGPL 2.1		|
+| libjson-c			| https://s3.amazonaws.com/json-c_releases						 	| MIT			|
+| libeasy			| https://dev.iopsys.eu/iopsys/easy-soc-libs					 	| GNU GPLv2		|
 
 Additionally, in order to build with the tests, the following libraries are needed:
 
