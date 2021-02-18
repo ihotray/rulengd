@@ -112,7 +112,7 @@ certain action is taken.
 
 ###### Description
 
-Register an if-then-that event trigger through a UCI configuration and verify
+Register an if-this-then-that event trigger through a UCI configuration and verify
 that the invoke is triggered on recorded event.
 
 ###### Test Steps
@@ -130,7 +130,7 @@ After triggering the event the file `/tmp/test_file.txt` is created through
 
 ###### Description
 
-Register an if-then-that event trigger through a UCI configuration and attempt
+Register an if-this-then-that event trigger through a UCI configuration and attempt
 to trigger it through an invalid event.
 
 ###### Test Steps
@@ -145,18 +145,21 @@ After triggering the event the file `/tmp/test_file.txt` should not be created.
 
 #### JSON Recipe
 
-| Serial ID		| Test Case Name	                                                                            |
-| :---			| :---				                                                                            |
-| 1				| [test_rulengd_register_listener](#test_rulengd_register_listener)	                            |
-| 2				| [test_rulengd_trigger_event_fail](#test_rulengd_trigger_event_fail)	                        |
-| 3				| [test_rulengd_trigger_event](#test_rulengd_trigger_event)	                                    |
-| 4				| [test_rulengd_trigger_invoke_fail](#test_rulengd_trigger_invoke_fail)	                        |
-| 5				| [test_rulengd_trigger_invoke](#test_rulengd_trigger_invoke)	                                |
-| 6				| [test_rulengd_trigger_invoke_multi_condition](#test_rulengd_trigger_invoke_multi_condition)	|
-| 7				| [test_rulengd_trigger_invoke_multi_then](#test_rulengd_trigger_invoke_multi_then)	            |
-| 8				| [test_rulengd_execution_interval](#test_rulengd_execution_interval)             	            |
-| 9				| [test_rulengd_multi_recipe](#test_rulengd_multi_recipe)	                                    |
-| 10			| [test_rulengd_regex](#test_rulengd_regex)	                                                    |
+| Serial ID		| Test Case Name																					|
+| :---			| :---																								|
+| 1				| [test_rulengd_register_listener](#test_rulengd_register_listener)									|
+| 2				| [test_rulengd_trigger_event_fail](#test_rulengd_trigger_event_fail)								|
+| 3				| [test_rulengd_trigger_event](#test_rulengd_trigger_event)											|
+| 4				| [test_rulengd_trigger_invoke_fail](#test_rulengd_trigger_invoke_fail)								|
+| 5				| [test_rulengd_trigger_invoke](#test_rulengd_trigger_invoke)										|
+| 6				| [test_rulengd_trigger_invoke_cli](#test_rulengd_trigger_invoke_cli)								|
+| 7				| [test_rulengd_trigger_invoke_multi_condition](#test_rulengd_trigger_invoke_multi_condition)		|
+| 8				| [test_rulengd_trigger_invoke_multi_condition_or](#test_rulengd_trigger_invoke_multi_condition_or)	|
+| 9				| [test_rulengd_trigger_invoke_multi_then](#test_rulengd_trigger_invoke_multi_then)					|
+| 10			| [test_rulengd_execution_interval](#test_rulengd_execution_interval)								|
+| 11			| [test_rulengd_multi_rule](#test_rulengd_multi_rule)												|
+| 12			| [test_rulengd_multi_recipe](#test_rulengd_multi_recipe)											|
+| 13			| [test_rulengd_regex](#test_rulengd_regex)															|
 
 
 ##### test_rulengd_register_listener
@@ -186,7 +189,7 @@ should not register a hit, neither should a match key with wrong type.
 ###### Test Steps
 
 Setup listeners through `ruleng_bus_register_events(3)` with different recipe
-variations and simulate events, without any matches
+variations and simulate events, without any matches.
 
 ###### Test Expected Results
 
@@ -228,18 +231,76 @@ The `struct ruleng_json_rule` should record a hit, meaning, its `hit`
 variable should be incremented. No segfaults or leaks caused by the missing
 keys.
 
+##### test_rulengd_trigger_invoke
+
+###### Description
+
+Test different variations of the `then` key, which has a valid match on
+ubus, meaning they should record hits, and increment the template.
+
+###### Test Steps
+
+Setup a listener through `ruleng_bus_register_events(3)`, and simulate an event
+with the appropriate type and key-value pair to trigger a hit.
+
+###### Test Expected Results
+
+The `struct ruleng_json_rule` should record a hit, meaning, its `hit`
+variable and the template should be incremented.
+
+##### test_rulengd_trigger_invoke_cli
+
+###### Description
+
+Test different variations of the `then` key, which has a valid match on
+ubus, meaning they should record hits, and execute the given command, which
+increases the template.
+
+###### Test Steps
+
+Setup a listener through `ruleng_bus_register_events(3)`, and simulate an event
+with the appropriate type and key-value pair to trigger a hit, causing a
+shell command to be executed twice.
+
+###### Test Expected Results
+
+The `struct ruleng_json_rule` should record a hit, meaning, its `hit`
+variable should be incremented, the shell command executed and the template
+should be incremented.
+
 ##### test_rulengd_trigger_invoke_multi_condition
 
 ###### Description
 
 Test recipes with multiple conditions and an `event_period` set in order to
-trigger an if-then-that case.
+trigger an if-this-and-this-then-that case.
+
+###### Test Steps
+
+Setup a JSON recipe containing multiple `if` conditions with an "AND"
+`if_operator`and one `then` condition, validating that it is invoked after
+simulating the two events through `ruleng_event_json_cb`, then repeat the
+process with a `event_period`.
+
+###### Test Expected Results
+
+If two events are recorded that match the `if` case within the specified
+`event_period`, the `template` objects `increment` method is invoked and
+recorded as increased by validating it through its `status` method.
+
+##### test_rulengd_trigger_invoke_multi_condition_or
+
+###### Description
+
+Test recipes with multiple conditions and an `event_period` set in order to
+trigger an if-this-or-this-then-that case.
 
 ###### Test Steps
 
 Setup a JSON recipe containing multiple `if` conditions, and one `then`
-condition, validating that it is invoked after simulating the two events through
-`ruleng_event_json_cb`, then repeat the process with a `event_period`.
+condition, validating that it is invoked after simulating only one events
+through `ruleng_event_json_cb`, then repeat the process with an "OR"
+`if_operator`.
 
 ###### Test Expected Results
 
@@ -251,7 +312,7 @@ recorded as increased by validating it through its `status` method.
 
 ###### Description
 
-Test recipes with multiple invoke conditions on successful if-then-that trigger.
+Test recipes with multiple invoke conditions on successful if-this-then-that trigger.
 
 ###### Test Steps
 
@@ -283,6 +344,21 @@ and record the time.
 
 The second invoke should trigger the `then` chain, and take more than five
 seconds.
+
+##### test_rulengd_multi_rule
+
+###### Description
+
+Test a JSON configuration involving two rules in a single JSON recipe.
+
+###### Test Steps
+
+Prepare two rules within files, with different `if` conditions.
+
+###### Test Expected Results
+
+Trigger the `if` conditions from all the JSON rules and validate that the
+conditions triggered their expected ubus invokes.
 
 ##### test_rulengd_multi_recipe
 

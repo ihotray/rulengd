@@ -1,33 +1,34 @@
 {
-    "time" : {
-        "event_period" : 10,
-        "execution_interval" : 1
-    },
-    "if" : [
-        {
-            "event": "test.sta",
-            "match":{
-                "placeholder": 1
-            }
-        },
-        {   "event":"test.client",
-            "match": {
-            	"Placeholder": 1
-	    }
-        }
-    ],
-    "then" : [
-        {
-            "object": "template",
-            "method":"increment",
-            "args" : {
-            }
-        },
-        {
-            "object":"template_copy",
-            "method":"increment",
-            "args": {
-            }
-        }
-    ]
+	"test_recipe": {
+		"if_operator":"AND",
+		"if_event_period": 10,
+		"then_exec_interval": 1,
+		"if" : [
+			{
+				"event":"test.sta",
+				"match":{
+					"placeholder": 1
+				}
+			},
+			{   "event":"test.client",
+				"match": {
+					"Placeholder": 1
+			}
+			}
+		],
+		"then" : [
+			{
+				"object":"template",
+				"method":"increment",
+				"args" : {
+				}
+			},
+			{
+				"object":"template_copy",
+				"method":"increment",
+				"args": {
+				}
+			}
+		]
+	}
 }
