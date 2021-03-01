@@ -242,7 +242,7 @@ enum ruleng_bus_rc ruleng_process_json(
 			rule->time.sleep_time = get_json_int_object(val, JSON_SLEEP_FIELD);
 
 			char if_operator[64] = {0};
-			snprintf(if_operator, strlen(if_operator)-1, "%s",
+			snprintf(if_operator, sizeof(if_operator), "%s",
 					 get_json_string_object(val, JSON_IF_OPERATOR_FIELD));
 
 			if (!strcmp(if_operator, "AND"))
