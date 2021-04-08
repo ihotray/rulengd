@@ -233,6 +233,7 @@ static void test_rulengd_trigger_event(void **state)
 	struct blob_buf bb = {0};
 
 	/* valid cfg, but not valid 'then' - should increment hits */
+	json_object_set_by_string(&e->obj, "test_rule.if_operator", "AND", json_type_string);
 	json_object_set_by_string(&e->obj, "test_rule.if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "test_rule.if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "test_rule.then", "[]", json_type_array);
@@ -262,6 +263,7 @@ static void test_rulengd_trigger_invoke_fail(void **state)
 	blobmsg_add_u32(&bb, "placeholder", 1);
 
 	/* valid cfg, but no method - should increment hits, no segfault! */
+	json_object_set_by_string(&e->obj, "test_rule.if_operator", "AND", json_type_string);
 	json_object_set_by_string(&e->obj, "test_rule.if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "test_rule.if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "test_rule.then[0]", "{\"object\": \"template\"}", json_type_object);
@@ -301,6 +303,7 @@ static void test_rulengd_trigger_invoke(void **state)
 	blobmsg_add_u32(&bb, "placeholder", 1);
 
 	/* valid cfg, but no args (optional!) - should increment hits, and counter! */
+	json_object_set_by_string(&e->obj, "test_rule.if_operator", "AND", json_type_string);
 	json_object_set_by_string(&e->obj, "test_rule.if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "test_rule.if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "test_rule.then[0]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
@@ -358,6 +361,7 @@ static void test_rulengd_trigger_invoke_cli(void **state)
 	blobmsg_add_u32(&bb, "placeholder", 1);
 
 	/* valid cfg, but no args (optional!) - should increment hits, and counter! */
+	json_object_set_by_string(&e->obj, "test_rule.if_operator", "AND", json_type_string);
 	json_object_set_by_string(&e->obj, "test_rule.if[0].event", "test.event", json_type_string);
 	json_object_set_by_string(&e->obj, "test_rule.if[0].match.placeholder", "1", json_type_int);
 	json_object_set_by_string(&e->obj, "test_rule.then[0]", "{\"cli\": \"ubus call template increment\"}", json_type_object);
@@ -548,27 +552,27 @@ static void test_rulengd_trigger_invoke_multi_condition_or(void **state)
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
 
 
-	assert_int_equal(1, r->hits);
+	assert_int_equal(0, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(1, e->counter);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
 
 
-	assert_int_equal(2, r->hits);
+	assert_int_equal(0, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(2, e->counter);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
 
-	assert_int_equal(3, r->hits);
+	assert_int_equal(0, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(3, e->counter);
 	sleep(1);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
 
-	assert_int_equal(4, r->hits);
+	assert_int_equal(0, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(4, e->counter);
 
@@ -585,30 +589,30 @@ static void test_rulengd_trigger_invoke_multi_condition_or(void **state)
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
 
-	assert_int_equal(1, r->hits);
+	assert_int_equal(0, r->hits);
 
 	sleep(1);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
-	assert_int_equal(2, r->hits);
+	assert_int_equal(0, r->hits);
 
 	sleep(1);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.three", bb.head);
 
-	assert_int_equal(3, r->hits);
+	assert_int_equal(0, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(7, e->counter);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
-	assert_int_equal(4, r->hits);
+	assert_int_equal(0, r->hits);
 
 	sleep(2);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
-	assert_int_equal(5, r->hits);
+	assert_int_equal(0, r->hits);
 
 	sleep(2);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.three", bb.head);
 
-	assert_int_equal(6, r->hits);
+	assert_int_equal(0, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
 	assert_int_equal(10, e->counter);
 
