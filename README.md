@@ -205,7 +205,6 @@ To successfully build rulengd, the following libraries are needed:
 | libubox			| https://git.openwrt.org/project/libubox.git					 	| BSD			|
 | libubus			| https://git.openwrt.org/project/ubus.git						 	| LGPL 2.1		|
 | libjson-c			| https://s3.amazonaws.com/json-c_releases						 	| MIT			|
-| libeasy			| https://dev.iopsys.eu/iopsys/easy-soc-libs					 	| GNU GPLv2		|
 
 Additionally, in order to build with the tests, the following libraries are needed:
 

@@ -36,7 +36,7 @@ set(SOURCES
   )
 
 add_executable(rulengd ${SOURCES})
-target_link_libraries(rulengd ${RULENGD_LINK} easy)
+target_link_libraries(rulengd ${RULENGD_LINK})
 
 #testing
 IF(CMAKE_BUILD_TYPE STREQUAL Debug)
