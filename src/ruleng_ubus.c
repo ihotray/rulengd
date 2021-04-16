@@ -201,8 +201,17 @@ exit:
 void ruleng_cli_call(struct ruleng_rule *r)
 {
 	FILE *fp;
+	char buff[256] = {0};
 	fp = popen(r->action.object, "r");
-	fclose(fp);
+
+	RULENG_INFO("Command executed, result:");
+	
+	while (fgets(buff, sizeof(buff), fp) != NULL) {
+		RULENG_INFO("%s", buff);
+	}
+
+	int ret = WEXITSTATUS(pclose(fp));
+	RULENG_INFO("Exit code = %d", ret);
 }
 
 bool ruleng_bus_take_action(
