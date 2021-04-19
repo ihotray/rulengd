@@ -19,7 +19,6 @@ FOREACH(test_name IN LISTS all_tests)
 		${JSON-C_LIBRARIES}
 		${JSON_EDITOR_LIBRARIES}
 		pthread
-		easy
 	)
 	#ADD_TEST(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)
 ENDFOREACH(test_name)

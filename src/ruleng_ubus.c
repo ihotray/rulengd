@@ -11,7 +11,6 @@
 #include <libubox/list.h>
 #include <uci.h>
 #include <json-c/json.h>
-#include <easy/easy.h>
 
 #include "ruleng_bus.h"
 #include "ruleng_json.h"
@@ -201,13 +200,18 @@ exit:
 
 void ruleng_cli_call(struct ruleng_rule *r)
 {
+	FILE *fp;
 	char buff[256] = {0};
-	int ret = Cmd(buff, sizeof(buff), r->action.object);
+	fp = popen(r->action.object, "r");
 
-	if (!ret)
-		RULENG_INFO("Command executed, result = %s", buff);
-	else
-		RULENG_ERR("Error executing command, ret = %d", ret);
+	RULENG_INFO("Command executed, result:");
+	
+	while (fgets(buff, sizeof(buff), fp) != NULL) {
+		RULENG_INFO("%s", buff);
+	}
+
+	int ret = WEXITSTATUS(pclose(fp));
+	RULENG_INFO("Exit code = %d", ret);
 }
 
 bool ruleng_bus_take_action(
