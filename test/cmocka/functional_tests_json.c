@@ -129,7 +129,7 @@ static int setup_bus_ctx(struct ruleng_bus_ctx **ctx)
 
     struct ubus_context *ubus_ctx = ubus_connect(NULL);
     if (NULL == ubus_ctx) {
-        fprintf(stderr, "error ubus connect: /var/run/ubus.sock\n");
+        fprintf(stderr, "error ubus connect: /var/run/ubus/ubus.sock\n");
         return -1;
     }
     _ctx->com_ctx = com_ctx;

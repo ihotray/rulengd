@@ -5,7 +5,7 @@
 #include "ruleng.h"
 #include "utils.h"
 
-#define RULENG_DEFAULT_UBUS_PATH "/var/run/ubus.sock"
+#define RULENG_DEFAULT_UBUS_PATH "/var/run/ubus/ubus.sock"
 #define RULENG_DEFAULT_RULES_PATH "ruleng-test-rules"
 
 static void ruleng_usage(char *n)
@@ -21,7 +21,7 @@ static void ruleng_usage(char *n)
 
 int main(int argc, char **argv)
 {
-	char *sock = RULENG_DEFAULT_UBUS_PATH;
+	char *sock = NULL;
 	char *rules = RULENG_DEFAULT_RULES_PATH;
 	int c = -1;
 
