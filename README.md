@@ -88,45 +88,120 @@ will be performed in the specified order.
 
 ```JSON
 {
-    "wifi_email": {
-        "if_operator" : "AND",
-        "event_period" : 10,
-        "execution_interval" : 1,
-        "if" : [
-            {
-                "event": "wifi.sta",
-                "match":{
-                    "macaddr":"00:e0:4c:68:05:9a",
-                    "action":"associated"
-                }
-            },
-            {   "event":"client",
-                "match": {
-                    "action":"connect",
-                    "macaddr":"00:e0:4c:68:05:9a",
-                    "ipaddr":"192.168.1.231",
-                    "network":"lan"
-                }
-            }
-        ],
-        "then" : [
-            {
-                "object": "smtp.client",
-                "method":"send",
-                "args" : {
-                    "email":"email@domain.com",
-                    "data": "Alice is home"
-                }
-            },
-            {
-                "object":"wifi.ap.wlan0",
-                "method":"disassociate",
-                "args": {
-                    "macaddr":"00:e0:4c:68:05:9a"
-                }
-            }
-        ]
-    }
+	"wps_active": {
+		"if_operator" : "AND",	
+		"if_event_period": 5,
+		"if" : [
+			{
+				"event": "button.WPS",
+				"match": {
+					"action":"released"
+				}
+			},
+			{
+				"event": "wifi.ap",
+				"match": {
+					"event":"wps-pbc-active"
+				}
+			}			
+		],
+		"then_exec_interval" : 2,
+		"then" : [
+			{
+				"object": "led.wps",
+				"method":"set",
+				"args" : {
+					"state": "notice"
+				}
+			},
+			{
+				"object": "led.wps",
+				"method":"set",
+				"args" : {
+					"state": "alert"
+				},
+				"timeout": 1
+			}			
+		]
+	},
+	"wps_success": {
+		"if_operator" : "OR",
+		"if" : [
+			{
+				"event": "wifi.ap",
+				"match": {
+					"event":"wps-reg-success"
+				}
+			},
+			{
+				"event": "wifi.bsta",
+				"match": {
+					"event":"wps-success"
+				}
+			}
+		],
+		"then" : [
+			{
+				"object": "led.wps",
+				"method":"set",
+				"args" : {
+					"state": "ok",
+					"timeout": 30,					
+				},
+				"timeout": 1			
+			}
+		]
+	},
+	"wps_timeout": {
+		"if_operator" : "OR",
+		"if" : [
+			{
+				"event": "wifi.ap",
+				"match": {
+					"event":"wps-timeout"
+				}
+			},
+			{
+				"event": "wifi.bsta",
+				"match": {
+					"event":"wps-timeout"
+				}
+			}
+		],
+		"then" : [
+			{
+				"object": "led.wps",
+				"method":"set",
+				"args" : {
+					"state": "off"				
+				},
+				"timeout": 2
+			}
+		]
+	},
+	"wps_fail": {
+		"if_operator" : "OR",
+		"if" : [
+			{
+				"event": "wifi.ap",
+				"match": {
+					"event":"wps-fail"
+				}
+			},
+			{
+				"event": "wifi.bsta",
+				"match": {
+					"event":"wps-fail"
+				}
+			}
+		],
+		"then" : [
+			{
+				"cli": "/sbin/test arg1 arg2",
+				"timeout": 10
+			}
+		]
+	}	
 }
 ```
 
