@@ -101,9 +101,7 @@ void ruleng_event_json_cb(
 		char *event = NULL;
 
 		for(int i=0; (event = strsep(&event_titles, JSON_EVENT_SEP)); ++i) {
-			int reti;
 			regex_t regex_exp;
-			char msgbuf[100];
 
 			// Dont parse after reading final separator
 			if (event == orig + strlen(r->event.name))
@@ -114,6 +112,7 @@ void ruleng_event_json_cb(
 				if (strcmp(event, type) != 0)
 					continue;
 			} else {
+				int reti;
 				RULENG_INFO("Trying to regex match!\n");
 				reti = regcomp(&regex_exp, event, 0);
 
@@ -128,6 +127,7 @@ void ruleng_event_json_cb(
 					regfree(&regex_exp);
 					continue;
 				} else if (reti) {
+					char msgbuf[100];
 					regerror(reti, &regex_exp, msgbuf, sizeof(msgbuf));
 					RULENG_ERR("Regex match failed: %s\n", msgbuf);
 					regfree(&regex_exp);

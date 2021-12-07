@@ -11,6 +11,12 @@ variables:
   DEBUG: 'TRUE'
   SOURCE_FOLDER: "."
 
+variables:
+  DEBUG: 'TRUE'
+  SOURCE_FOLDER: "."
+  RUN_CPPCHECK: "cppcheck --enable=all --error-exitcode=1 --suppress=unreadVariable"
+  
+
 run_unit_test:
     stage: unit_test
     image: iopsys/code-analysis-dev:latest

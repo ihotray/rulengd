@@ -102,7 +102,7 @@ static enum ruleng_rules_rc ruleng_rules_rules_parse_object_method(
 	}
 
 	*object = strsep(&temp, "-");
-	if (object == NULL) {
+	if (*object == NULL) {
 		RULENG_ERR("%s: delimiter '-' not found", s->type);
 		rc = RULENG_RULES_ERR_NOT_VALID;
 		goto cleanup_temp;

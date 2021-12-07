@@ -197,6 +197,9 @@ static void test_rulengd_trigger_event_fail(void **state)
 	json_object_set_by_string(&e->obj, "test_rule.then", "[]", json_type_array);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(1, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 
 	assert_non_null(r);
@@ -211,6 +214,9 @@ static void test_rulengd_trigger_event_fail(void **state)
 	json_object_set_by_string(&e->obj, "test_rule.if[0].match.placeholder", "1", json_type_string);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(1, rv);
+
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 
@@ -239,6 +245,9 @@ static void test_rulengd_trigger_event(void **state)
 	json_object_set_by_string(&e->obj, "test_rule.then", "[]", json_type_array);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(1, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 
@@ -269,6 +278,9 @@ static void test_rulengd_trigger_invoke_fail(void **state)
 	json_object_set_by_string(&e->obj, "test_rule.then[0]", "{\"object\": \"template\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(1, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
@@ -280,6 +292,9 @@ static void test_rulengd_trigger_invoke_fail(void **state)
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(1, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
@@ -309,6 +324,9 @@ static void test_rulengd_trigger_invoke(void **state)
 	json_object_set_by_string(&e->obj, "test_rule.then[0]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(1, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
@@ -323,6 +341,9 @@ static void test_rulengd_trigger_invoke(void **state)
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(1, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
@@ -336,6 +357,9 @@ static void test_rulengd_trigger_invoke(void **state)
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(1, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
@@ -368,6 +392,9 @@ static void test_rulengd_trigger_invoke_cli(void **state)
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(1, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
@@ -381,6 +408,9 @@ static void test_rulengd_trigger_invoke_cli(void **state)
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(1, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
@@ -413,6 +443,9 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	json_object_set_by_string(&e->obj, "test_rule.then[0]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(2, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	/* this one will (could fail, extremely unlikely? if time(NULL) ticks between calls?) work because wasted_time will be 0 and wait_time is unset (0) */
@@ -450,6 +483,9 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(2, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 
@@ -491,6 +527,9 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(3, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 
@@ -546,6 +585,9 @@ static void test_rulengd_trigger_invoke_multi_condition_or(void **state)
 	json_object_set_by_string(&e->obj, "test_rule.then[0]", "{\"object\": \"template\", \"method\": \"increment\"}", json_type_object);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(2, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	/* this one will (could fail, extremely unlikely? if time(NULL) ticks between calls?) work because wasted_time will be 0 and wait_time is unset (0) */
@@ -584,6 +626,9 @@ static void test_rulengd_trigger_invoke_multi_condition_or(void **state)
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(3, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 
@@ -643,6 +688,9 @@ static void test_rulengd_trigger_invoke_multi_then(void **state)
 	json_object_set_by_string(&e->obj, "test_rule.then_exec_interval", "1", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(2, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 
@@ -667,6 +715,9 @@ static void test_rulengd_trigger_invoke_multi_then(void **state)
 
 	clear_rules_init(e->r_ctx);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(2, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 
@@ -709,6 +760,9 @@ static void test_rulengd_execution_interval(void **state)
 	json_object_set_by_string(&e->obj, "test_rule.then_exec_interval", "5", json_type_int);
 	json_object_to_file_ext("/etc/test_recipe1.json", e->obj, JSON_C_TO_STRING_PRETTY);
 	rv = ruleng_bus_register_events(ctx, "ruleng-test-recipe", &rc);
+	assert_int_equal(0, rc);
+	assert_int_equal(2, rv);
+	
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 
