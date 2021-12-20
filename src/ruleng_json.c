@@ -101,39 +101,12 @@ void ruleng_event_json_cb(
 		char *event = NULL;
 
 		for(int i=0; (event = strsep(&event_titles, JSON_EVENT_SEP)); ++i) {
-			int reti;
-			regex_t regex_exp;
-			bool event_data_regex = false;
-
-			// Dont parse after reading final separator
-			if (event == orig + strlen(r->event.name))
-				break;
-
-			RULENG_INFO("Trying to regex match!\n");
-			reti = regcomp(&regex_exp, event, 0);
-
-			if (reti) {
-				RULENG_ERR("Could not compile regex\n");
+			if (strcmp(event, type) != 0)
 				continue;
-			}
-
-			reti = regexec(&regex_exp, type, 0, NULL, 0);
-
-			if (reti == REG_NOMATCH) {
-				regfree(&regex_exp);
-				continue;
-			} else if (reti) {
-				char msgbuf[100];
-				regerror(reti, &regex_exp, msgbuf, sizeof(msgbuf));
-				RULENG_ERR("Regex match failed: %s\n", msgbuf);
-				regfree(&regex_exp);
-				continue;
-			}
-
-			regfree(&regex_exp);
 
 			RULENG_INFO("Event match |%s:%s|", event, type);
 
+			bool event_data_regex = false;
 			json_object *jobj = json_object_array_get_idx(r->event.args, i);
 			json_object *args;
 
