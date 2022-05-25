@@ -1,3 +1,9 @@
+variables:
+  COMMON_IMAGE: iopsys/code-analysis:0.27
+  DEBUG: 'TRUE'
+  SOURCE_FOLDER: "./src"
+  RUN_CPPCHECK: "cppcheck --enable=all --error-exitcode=1"
+
 include:
   - project: 'iopsys/gitlab-ci-pipeline'
     file: '/static-code-analysis.yml'
@@ -7,19 +13,9 @@ stages:
     - unit_test
     - functional_test
 
-variables:
-  DEBUG: 'TRUE'
-  SOURCE_FOLDER: "."
-
-variables:
-  DEBUG: 'TRUE'
-  SOURCE_FOLDER: "."
-  RUN_CPPCHECK: "cppcheck --enable=all --error-exitcode=1 --suppress=unreadVariable"
-  
-
 run_unit_test:
     stage: unit_test
-    image: iopsys/code-analysis-dev:latest
+    image: ${COMMON_IMAGE}
     allow_failure: true
     script:
         - "./gitlab-ci/setup.sh"
@@ -32,7 +28,7 @@ run_unit_test:
 
 run_functional_test:
     stage: functional_test
-    image: iopsys/code-analysis-dev:latest
+    image: ${COMMON_IMAGE}
     allow_failure: true
     script:
         - "./gitlab-ci/setup.sh"
@@ -41,4 +37,4 @@ run_functional_test:
     artifacts:
         when: always
         paths:
-            - /build/functional-coverage
+            - coverage.xml
