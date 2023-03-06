@@ -1,0 +1,5 @@
+config rule
+    option recipe "/etc/test_recipe1.json"
+
+config rule
+    option recipe "/etc/test_recipe2.json"

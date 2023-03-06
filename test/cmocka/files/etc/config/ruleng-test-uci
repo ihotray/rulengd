@@ -1,0 +1,40 @@
+
+config rule
+    option event 'wifi.radio.channel_changed'
+    list event_data "{'radio': 0, 'reason': 1}"
+    list event_data "{'channels': [1, 2, 3]}"
+    option method 'file->write'
+    list method_data "{'path': '/tmp/test_file.txt'}"
+    list method_data "{'data': 'channel changed!'}"
+
+# missing event
+config rule
+    list event_data "{'radio': 0, 'reason': 1}"
+    list event_data "{'channels': [1, 2, 3]}"
+    option method 'file->write'
+    list method_data "{'path': '/tmp/test_file.txt'}"
+    list method_data "{'data': 'channel changed!'}"
+
+# missing method
+config rule
+    option event 'wifi.radio.channel_changed'
+    list event_data "{'radio': 0, 'reason': 1}"
+    list event_data "{'channels': [1, 2, 3]}"
+    list method_data "{'path': '/tmp/test_file.txt'}"
+    list method_data "{'data': 'channel changed!'}"
+
+# missing args
+config rule
+    option event 'wifi.radio.channel_changed'
+    list event_data "{'radio': 0, 'reason': 1}"
+    list event_data "{'channels': [1, 2, 3]}"
+    option method 'file->write'
+
+# missing one method_data arg
+config rule
+    option event 'wifi.radio.channel_changed'
+    list event_data "{'radio': 0, 'reason': 1}"
+    list event_data "{'channels': [1, 2, 3]}"
+    option method 'file->write'
+    list method_data "{'path': '/tmp/test_file.txt'}"
+    list method_data "{'data': 'channel changed!'}"

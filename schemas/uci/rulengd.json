@@ -1,0 +1,41 @@
+{
+    "rulengd": [{
+            "section": "rule",
+            "description": "A rule engine rule",
+            "multi": true,
+            "options": [{
+                    "name": "event",
+                    "type": "string",
+                    "required": "no",
+                    "default": null,
+                    "description": "Event name to listen for."
+                },
+                {
+                    "name": "event_data",
+                    "default": null,
+                    "description": "Arguments to match against.",
+                    "type": "list"
+                },
+                {
+                    "name": "method",
+                    "default": null,
+                    "description": "Object and method to invoke on successful match.",
+                    "type": "string"
+                },
+                {
+                    "name": "method_data",
+                    "default": null,
+                    "description": "Arguments for invoked method.",
+                    "type": "string"
+                },
+                {
+                    "name": "reciepe",
+                    "type": "string",
+                    "required": "no",
+                    "default": null,
+                    "description": "Path to a JSON recipe file."
+                }
+            ]
+        }
+    ]
+}
