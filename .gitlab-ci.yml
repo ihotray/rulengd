@@ -1,5 +1,5 @@
 variables:
-  COMMON_IMAGE: iopsys/code-analysis:0.27
+  COMMON_IMAGE: dev.iopsys.eu:5050/iopsys/gitlab-ci-pipeline/code-analysis:0.27
   DEBUG: 'TRUE'
   SOURCE_FOLDER: "./src"
   RUN_CPPCHECK: "cppcheck --enable=all --error-exitcode=1"
@@ -24,7 +24,7 @@ run_unit_test:
     artifacts:
         when: always
         paths:
-            - /build/unit-coverage
+            - build/unit-coverage
 
 run_functional_test:
     stage: functional_test

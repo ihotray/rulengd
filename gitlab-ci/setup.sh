@@ -3,7 +3,7 @@ set -e
 echo "preparation script"
 
 pwd
-mkdir build
+[ -d build ] || mkdir build
 pushd build
 	cmake .. -DCMAKE_BUILD_TYPE=Debug
 	make
