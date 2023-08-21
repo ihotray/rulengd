@@ -1,12 +1,13 @@
 variables:
-  COMMON_IMAGE: dev.iopsys.eu:5050/iopsys/gitlab-ci-pipeline/code-analysis:0.27
   DEBUG: 'TRUE'
   SOURCE_FOLDER: "./src"
-  RUN_CPPCHECK: "cppcheck --enable=all --error-exitcode=1"
+  FLAWFINDER_OPTIONS: "-m 4 --error-level=5"
+  CPPCHECK_OPTIONS: " --enable=all --inline-suppr"
 
 include:
   - project: 'iopsys/gitlab-ci-pipeline'
     file: '/static-code-analysis.yml'
+    ref: '0.30'
 
 stages:
     - static_code_analysis
