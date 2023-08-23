@@ -33,7 +33,8 @@ const char *get_json_string_object(struct json_object *obj, const char *str)
 
 static void ruleng_take_json_action(
   struct ubus_context *u_ctx,
-  struct ruleng_json_rule *r
+  struct ruleng_json_rule *r,
+  struct blob_attr *msg
 ) {
 	int len = json_object_array_length(r->action.args);
 
@@ -41,6 +42,7 @@ static void ruleng_take_json_action(
 		json_object *temp = json_object_array_get_idx(r->action.args, i);
 		struct ruleng_rule *rr = malloc(sizeof(struct ruleng_rule));
 		json_object_object_get_ex(temp, JSON_ARGS_FIELD, &rr->action.args);
+		json_object_object_get_ex(temp, JSON_ENVS_FIELD, &rr->action.envs);
 
 		rr->action.timeout = get_json_int_object(temp, JSON_TIMEOUT_FIELD);
 
@@ -57,7 +59,7 @@ static void ruleng_take_json_action(
 			}
 
 			RULENG_INFO("calling [%s]", rr->action.object);
-			ruleng_cli_call(rr);
+			ruleng_cli_call(rr, msg);
 		} else {
 			rr->action.name = get_json_string_object(temp, JSON_METHOD_FIELD);
 
@@ -67,7 +69,7 @@ static void ruleng_take_json_action(
 			}
 			
 			RULENG_INFO("calling[%s->%s]", rr->action.object, rr->action.name);
-			ruleng_ubus_call(u_ctx, rr);
+			ruleng_ubus_call(u_ctx, rr, msg);
 		}
 
 		if (i < len-1) {
@@ -151,7 +153,7 @@ void ruleng_event_json_cb(
 					r->last_hit_time = 0;
 					r->rules_hit = r->rules_bitmask;
 					RULENG_INFO("All rules matched within time [%s]", event);
-					ruleng_take_json_action(ubus_ctx, r);
+					ruleng_take_json_action(ubus_ctx, r, msg);
 				}
 			} else if (match == true) {
 				// Clear couters and take action
@@ -159,7 +161,7 @@ void ruleng_event_json_cb(
 				r->last_hit_time = 0;
 				r->rules_hit = r->rules_bitmask;
 				RULENG_INFO("One rule matched [%s]", event);
-				ruleng_take_json_action(ubus_ctx, r);
+				ruleng_take_json_action(ubus_ctx, r, msg);
 			}
 
 			blob_buf_free(&eargs);

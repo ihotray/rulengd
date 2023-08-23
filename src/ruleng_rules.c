@@ -20,6 +20,7 @@
 #define RULENG_EVENT_ARG_FIELD "event_data"
 #define RULENG_METHOD_FIELD "method"
 #define RULENG_METHOD_ARG_FIELD "method_data"
+#define RULENG_METHOD_ENV_FIELD "method_envs"
 
 void ruleng_json_rules_free(struct list_head *rules)
 {
@@ -39,6 +40,7 @@ void ruleng_rules_free(struct list_head *rules)
 
 	list_for_each_entry_safe(rule, tmp, rules, list) {
 		json_object_put(rule->action.args);
+		json_object_put(rule->action.envs);
 		json_object_put(rule->event.args);
 		free((void *) rule->event.name);
 		free((void *) rule->action.name);
@@ -256,12 +258,21 @@ static enum ruleng_rules_rc ruleng_rules_rules_parse_action(
 	if (rc != RULENG_RULES_OK)
 		goto cleanup_object;
 
+	struct json_object *envs = NULL;
+	rc = ruleng_rules_rules_parse_args(ctx, RULENG_METHOD_ENV_FIELD, s, name, &envs);
+
+	if (rc != RULENG_RULES_OK)
+		goto cleanup_args;
+
 	ac->name = name;
 	ac->object = object;
 	ac->args = args;
+	ac->envs = envs;
 
 	goto exit;
 
+cleanup_args:
+	json_object_put(args);
 cleanup_object:
 	free(object);
 exit:

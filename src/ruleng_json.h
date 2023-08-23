@@ -19,6 +19,7 @@
 #define JSON_METHOD_FIELD "method"
 #define JSON_TIMEOUT_FIELD "timeout"
 #define JSON_ARGS_FIELD "args"
+#define JSON_ENVS_FIELD "envs"
 #define JSON_EVENT_SEP "+"
 
 /* set n-th bit in x */

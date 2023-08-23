@@ -27,6 +27,7 @@ struct ruleng_rule {
 		const char *object;
 		const char *name;
 		struct json_object *args;
+		struct json_object *envs;
 	} action;
 };
 

@@ -1,31 +1,25 @@
 # Rule Engine
 
-Rulengd is OpenWrt version of IFTTT (If This Then That) mechanism. It allows
-configuring rules where options are ubus events with list of data and ubus
-methods with list of arguments.
+Rule engine daemon(`rulengd`) is OpenWrt version of IFTTT (If This Then That) service.
+It allows user to configuring rules, to monitor for ubus events and take action when event happens.
 
 ## Overview
-Rulengd registers to ubus events on the system and keeps track of each
-configured rule. When an event of interest is received, it compares it with the
-configured rule and if the expected data of the event matches with the data of
-the event received, it invokes the configured ubus method with the given
-arguments.
 
-With rulengd it is possible to add high level rules, for example presence rule
-where event is client and data is the MAC address of a specific person and the
-method to be executed is to sending an SMS to a specific email address with a
-specific message which are the arguments. It is also possible to create lower
-level rules such as when DSL training event is received blink Broadband LED.
+Rulengd registers to ubus events on the system and keeps track of each configured rule. When an event of interest is received, it compares it with the configured rule and if the expected data of the event matches with the data of the event received, it invokes the configured ubus/cli method with the given arguments.
 
-With rulengd in the system, instead of creating applications to execute actions
-upon receiving specific events, it suffices to create corresponding rule entries
-to ruleng UCI configuration file, or json recipes.
+With rulengd it is possible to create rules with actions on both northbound(Higher layer) and southbound(Lower layer):
+
+- An example of Higher layer action, send an email when user arrive at home, by creating a rule where event is client and data is the MAC address of a specific user and the action to be executed is to sending a message to a specific email address with a configured arguments.
+- An example of Lower layer action, when DSL training event is received blink Broadband LED.
+
+With rulengd in the system, instead of creating applications to execute actions upon receiving specific events, it suffices to create corresponding rule entries to ruleng UCI configuration file, or json recipes.
 
 
-### UCI Config
-An example UCI rule listening for a `client` event.
+## UCI Config
 
-```
+Example UCI rules:
+
+```bash
 config rule
     option event 'client'
     list event_data '{"action": "connect"}'
@@ -34,57 +28,60 @@ config rule
     list method_data '{"email": "email@domain.com"}'
     list method_data '{"data": "Alice is home"}'
 ```
-On a received event, if it contains the key-value pairs
-`{"action": "connect", "macaddr": "00:e0:4c:68:05:9a"}` the method `send` is
-invoked through the `smtp.client` object, with the arguments
-`{"email":"email@domain.com", data": "Alice is home"}`, sending an email to
-email@domain.com with the message "Alice is home".
 
-Note: Object and array arguments must be primitive types (we can't have object
-in the array).
+On a received event, if it contains the key-value pairs `{"action": "connect", "macaddr": "00:e0:4c:68:05:9a"}` the method `send` is invoked through the `smtp.client` object, with the arguments `{"email":"email@domain.com", data": "Alice is home"}`, to sending an email to email@domain.com with the message "Alice is home".
+
+```bash
+config rule
+    option event 'wifi.sta'
+    list event_data '{"event": "assoc"}'
+    list event_data '{"ifname": "wl0"}'
+    option method 'smtp.client->send'
+    list method_data '{"email": "email@domain.com"}'
+    list method_data '{"data": "&wifi.sta->data.macaddr"}'
+```
+
+In the same way on receiving of wifi.sta event, '{ "wifi.sta": {"ifname":"wl0","event":"assoc","data":{"macaddr":"14:85:7f:17:fd:40"}} }', if it contains the key-value pairs `{"event": "assoc", "ifname": "wl0"}`, then the method `send` is invoked through the `smtp.client` ubus object, with the arguments `{"email":"email@domain.com", data": "14:85:7f:17:fd:40"}`, to send an email to `email@domain.com` with the message "14:85:7f:17:fd:40".
+
+Note: Object and array arguments must be primitive types (we can't have object in the array).
 
 ## JSON Recipe
 
-For more granular event(s) and method(s) mapping, it is possible to create JSON
-files as recipes. If JSON recipes are used, the path to the recipe that should
-be read by rulengd needs to be specified in the rulengd UCI configuration file:
+For more granular event(s) and method(s) mapping, it is possible to create JSON files as recipes. If JSON recipes are used, the path to the recipe that should be read by rulengd needs to be specified in the rulengd UCI configuration file:
 
-```
+```bash
 config rule
     option recipe "/etc/recipe_1.json"
 ```
-The JSON recipes follow a similar logic as the UCI configurations, within multiple
-root rules, five keys can be found: `if_operator`, `if_event_period`, `if`,
-`then_exec_interval` and `then`.
 
-The time-related keys are necessary if the if-this-then-that condition depends on
-multiple events where the `if_operator` is set to *AND*. The `if_event_period` key
-specifies the time interval in which these events should be observed for the `then`
-calls to be executed. The operator can also be set to *OR*, which is the default
-behavior if there are no given value, and it will trigger the `then` if only one of
-the `if` condition is met. If there are multiple entries in the `then` condition,
-`then_exec_interval` may be provided as a key, specifying the wait time between
-the execution of the calls.
+The JSON recipes follow a similar logic as the UCI configurations, but it allows user to club multiple events and actions.
 
-The `if` key expects an array of objects, denoting events to match, each entry
-containing an `event`, and `match` key.
+JSON recipe provides following keys/operators which can be used within multiple root rules:
 
-The `then` key also expects and array of objects, representing ubus methods to
-invoke on received events matching that of the `if`. The objects should contain
-the keys `object` and `method`, with an optional object, `args`, containing
-key-value pairs to provide as argument. If you want to execute a shell command, the
-`cli` object must replace `object` in this array.
+| Key/Operator | Meaning |
+| ------------------ | ------------- |
+| if                 | To specify condition/events for a rule |
+| then               | To perform one or more action when a condition/event matches |
+| if_operator        | Relation between rules, valid values are 'AND', 'OR'         |
+| if_event_period    | Wait period in seconds between two events         |
+| then               | Define ubus/cli action if condition matches |
+| then_exec_interval | Wait time in seconds between two actions |
 
+> Notes: 
+> 1. The time-related keys(if_event_period, then_exec_interval) are necessary if the ITTT condition depends on multiple events with `if_operator` is set to *AND*.
+> 2. In case of more than one condition defined for a rule but `if_operator` not defined then 'OR' shall be used to evaluate the conditions, meaning match any of the events.
 
-In the following example recipe, listens for `wifi.sta` and `client` events,
-matching some key-value pairs. If the events are recorded within ten seconds
-after each other, it will invoke
-`ubus call smtp.client send '{"email":"email@domain.com, "data":"Alice is home",}'`
-and `ubus call wifi.ap.wlan0 dissassociate '{"macaddr": "00:e0:4c:68:05:9a"}'`,
-one second after eachother.
+### JSON Recipe examples
 
-Note: The order of the objects in the `then` array is important as the invokes
-will be performed in the specified order.
+In the following example recipe, listens for different wps events like:
+ - WPS button pressed (wps_active)
+ - Client connected with WPS (wps_success)
+ - WPS Timeout (wps_timeout)
+ - Client failed to onboard (wps_fail)
+
+and performs different actions in case of matching some key-value pairs.
+
+> Note: The order of the objects in the `then` array is important as the invokes will be performed in the specified order.
 
 ```JSON
 {
@@ -205,25 +202,73 @@ will be performed in the specified order.
 }
 ```
 
+#### Pass the event data to the defined action if configured
+
+- Event: { "wifi.sta": {"ifname":"wl0","event":"assoc","data":{"macaddr":"14:85:7f:17:fd:40"}} }
+- Action: ubus call smtp.client send '{"email": "email@domain.com", "data": "&wifi.sta->data.macaddr"}'
+
+```JSON
+{
+	"wifi_assoc": {
+		"if" : [
+			{
+				"event": "wifi.sta",
+				"match": {
+					"event":"assoc"
+				}
+			}			
+		],
+		"then" : [
+			{
+				"object": "smtp.client",
+				"method":"send",
+				"args" : {
+					"email": "email@domain.com",
+					"data": "&wifi.sta->data.macaddr"
+				},
+				"timeout": 1
+			}			
+		]
+	}
+}
+```
+
+#### Pass environment variables and arguments to CLI command actions
+
+- Event: { "ethport": {"ifname":"eth3","link":"down","speed":0,"duplex":"full"} }
+- Cli-Action: LINK=down PORT=eth3 /sbin/hotplug-call ethernet
+
+```JSON
+{
+	"ethernet_down": {
+		"if" : [
+			{
+				"event": "ethport"
+			}
+		],
+		"then" : [
+			{
+				"cli": "/sbin/hotplug-call ethernet",
+				"envs": {
+					"LINK": "&ethport->link",
+					"PORT": "&ethport->ifname"
+				},
+				"timeout": 1
+			}
+		]
+	}
+}
+```
+
+This recipes will call hotplug-call for all ethport events.
 
 ## Building
 
-```
+```bash
 mkdir build && cd build
 cmake ..
 make
 ```
-### Example
-
-After building, do ```sudo make install```. This will copy
-```./test/ruleng-test-rules``` to ```/etc/config```. Start ```rulengd```, and
-test it with
-
-```
-ubus send "test.event" "{'radio':0, 'reason':1, 'channels': [1,2,3], 'non-specified-key': 'non-specified-value'}"
-```
-
-This should write 'test event received!' to the ```/tmp/test_event.txt```.
 
 ## Tests
 
@@ -274,16 +319,16 @@ For more information on how rulengd is tested, see the
 
 To successfully build rulengd, the following libraries are needed:
 
-| Dependency		| Link																| License		|
-| ----------------- | ----------------------------------------------------------------- | ------------- |
-| libuci			| https://git.openwrt.org/project/uci.git						 	| LGPL 2.1		|
-| libubox			| https://git.openwrt.org/project/libubox.git					 	| BSD			|
-| libubus			| https://git.openwrt.org/project/ubus.git						 	| LGPL 2.1		|
-| libjson-c			| https://s3.amazonaws.com/json-c_releases						 	| MIT			|
+| Dependency		| Link						| License		|
+| ----------------- | ------------------------------------------------- | --------------------- |
+| libuci	| https://git.openwrt.org/project/uci.git	 	| LGPL 2.1		|
+| libubox	| https://git.openwrt.org/project/libubox.git	 	| BSD			|
+| libubus	| https://git.openwrt.org/project/ubus.git	 	| LGPL 2.1		|
+| libjson-c	| https://s3.amazonaws.com/json-c_releases	 	| MIT			|
 
 Additionally, in order to build with the tests, the following libraries are needed:
 
-| Dependency  				| Link                                       				| License       |
-| ------------------------- | --------------------------------------------------------- | ------------- |
-| cmocka                 	| https://cmocka.org/                                    	| Apache		|
-| libjson-editor			| https://dev.iopsys.eu/iopsys/json-editor   				| 	            |
+| Dependency  				| Link                         	| License       |
+| ------------------------- | ----------------------------------------- | ------------- |
+| cmocka               	| https://cmocka.org/                          	| Apache	|
+| libjson-editor	| https://dev.iopsys.eu/iopsys/json-editor   	| 	        |
