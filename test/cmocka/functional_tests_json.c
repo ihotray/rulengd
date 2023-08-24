@@ -398,7 +398,7 @@ static void test_rulengd_trigger_invoke_cli(void **state)
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
-
+	sleep(5);
 
 	assert_int_equal(1, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
@@ -414,6 +414,7 @@ static void test_rulengd_trigger_invoke_cli(void **state)
 	r = rulengd_get_json_rule(ctx, "test.event");
 	assert_non_null(r);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event", bb.head);
+	sleep(5);
 
 	assert_int_equal(1, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
@@ -457,6 +458,7 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	assert_int_equal(0, e->counter);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+	sleep(5);
 
 
 	assert_int_equal(2, r->hits);
@@ -472,6 +474,7 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	sleep(1);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+	sleep(5);
 
 	assert_int_equal(4, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
@@ -495,6 +498,7 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 	assert_int_equal(1, r->hits);
 
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+	sleep(5);
 
 	assert_int_equal(2, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
@@ -506,6 +510,7 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 
 	sleep(2);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+	sleep(5);
 
 	assert_int_equal(4, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
@@ -517,6 +522,7 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 
 	sleep(4);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.two", bb.head);
+	sleep(5);
 
 	assert_int_equal(6, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
@@ -543,6 +549,7 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 
 	sleep(1);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.three", bb.head);
+	sleep(5);
 
 	assert_int_equal(3, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);
@@ -557,6 +564,7 @@ static void test_rulengd_trigger_invoke_multi_condition(void **state)
 
 	sleep(2);
 	ruleng_event_json_cb(ctx->ubus_ctx, &ctx->json_handler, "test.event.three", bb.head);
+	sleep(5);
 
 	assert_int_equal(6, r->hits);
 	invoke_template(state, "status", invoke_status_cb, e);

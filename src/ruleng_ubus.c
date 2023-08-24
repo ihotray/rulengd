@@ -392,12 +392,11 @@ exit:
 }
 
 void ruleng_cli_call(
+  struct ubus_context *ubus_ctx,
   struct ruleng_rule *r,
   struct blob_attr *msg
 )
 {
-	FILE *fp;
-	char buff[256] = {0};
 	char tmp[5096] = {0};
 	char *action = NULL;
 	char *tok = NULL;
@@ -501,16 +500,57 @@ void ruleng_cli_call(
 	}
 
 	RULENG_DEBUG("Executing command: %s", cmd);
-	fp = popen(cmd, "r");
 
-	RULENG_INFO("Command executed, result:");
-	
-	while (fgets(buff, sizeof(buff), fp) != NULL) {
-		RULENG_INFO("%s", buff);
+	int fd[2];
+	if (pipe(fd) < 0) {
+		free(cmd);
+		RULENG_ERR("Pipe error");
+		return;
 	}
 
-	int ret = WEXITSTATUS(pclose(fp));
-	RULENG_INFO("Exit code = %d", ret);
+	pid_t child = fork();
+
+	if (child == -1) {
+		RULENG_ERR("Fork error");
+		free(cmd);
+		return;
+	} else if (child == 0) {
+		// child process
+		char cli[5096] = {0};
+		FILE *fp;
+		char buff[256] = {0};
+
+		ubus_shutdown(ubus_ctx);
+		uloop_done();
+
+		close(fd[1]);
+		int res = read(fd[0], cli, sizeof(cli));
+		close(fd[0]);
+
+		if (res == -1) {
+			RULENG_ERR("Failed to read command");
+			exit(EXIT_FAILURE);
+		}
+
+		RULENG_DEBUG("Command: %s", cli);
+		fp = popen(cli, "r");
+
+		RULENG_INFO("Command executed, result:");
+	
+		while (fgets(buff, sizeof(buff), fp) != NULL) {
+			RULENG_INFO("%s", buff);
+		}
+
+		int ret = WEXITSTATUS(pclose(fp));
+		RULENG_INFO("Exit code = %d", ret);
+
+		exit(EXIT_SUCCESS);
+	}
+
+	// parent
+	close(fd[0]);
+	write(fd[1], cmd, strlen(cmd));
+	close(fd[1]);
 	free(cmd);
 }
 

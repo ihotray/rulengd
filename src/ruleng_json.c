@@ -59,7 +59,7 @@ static void ruleng_take_json_action(
 			}
 
 			RULENG_INFO("calling [%s]", rr->action.object);
-			ruleng_cli_call(rr, msg);
+			ruleng_cli_call(u_ctx, rr, msg);
 		} else {
 			rr->action.name = get_json_string_object(temp, JSON_METHOD_FIELD);
 

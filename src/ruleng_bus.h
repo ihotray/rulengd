@@ -40,7 +40,7 @@ bool ruleng_bus_take_action(struct blob_attr *a, struct blob_attr *b, bool regex
 
 void ruleng_ubus_call(struct ubus_context *ubus_ctx, struct ruleng_rule *r, struct blob_attr *msg);
 
-void ruleng_cli_call(struct ruleng_rule *r, struct blob_attr *msg);
+void ruleng_cli_call(struct ubus_context *ubus_ctx, struct ruleng_rule *r, struct blob_attr *msg);
 
 void ruleng_event_cb(
   struct ubus_context *ubus_ctx,
