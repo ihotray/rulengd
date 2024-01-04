@@ -116,16 +116,16 @@ void ruleng_event_json_cb(
 				event_data_regex = json_object_get_boolean(args);
 				RULENG_INFO("event data regex: %d\n", event_data_regex);
 			}
-			json_object_object_get_ex(jobj, JSON_MATCH_FIELD, &args);
-			if (!args)
-				continue;
 
+			bool match = true;
 			struct blob_buf eargs = {0};
 			blob_buf_init(&eargs, 0);
-			blobmsg_add_object(&eargs, args);
 
-			bool match = false;
-			match = ruleng_bus_take_action(eargs.head, msg, event_data_regex);
+			json_object_object_get_ex(jobj, JSON_MATCH_FIELD, &args);
+			if (args) {
+				blobmsg_add_object(&eargs, args);
+				match = ruleng_bus_take_action(eargs.head, msg, event_data_regex);
+			}
 
 			if (true == match && r->operator == AND) {
 				++r->hits;

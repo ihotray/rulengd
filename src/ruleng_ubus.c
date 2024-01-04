@@ -520,8 +520,8 @@ void ruleng_cli_call(
 		FILE *fp;
 		char buff[256] = {0};
 
-		ubus_shutdown(ubus_ctx);
 		uloop_done();
+		ubus_shutdown(ubus_ctx);
 
 		close(fd[1]);
 		int res = read(fd[0], cli, sizeof(cli));
